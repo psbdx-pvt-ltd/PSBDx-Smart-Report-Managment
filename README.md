@@ -5,7 +5,7 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-777BB4.svg)](https://www.php.net/)
 [![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-blue.svg)](https://wordpress.org/)
-![Stable Release](https://img.shields.io/badge/stable%20release-1.1.0-brightgreen.svg)
+![Stable Release](https://img.shields.io/badge/stable%20release-1.0.1-brightgreen.svg)
 
 **Contributors:** [psbdx](https://github.com/psbdx-pvt-ltd), atwfarhan, [mfhamim](https://github.com/m-farhan-hamim)
 
