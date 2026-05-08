@@ -223,7 +223,12 @@ psbdx-smart-report-management/
 
 ## 🐛 Changelog
 
-### [1.1.0](https://dev.psbdx.xyz/v1-0-1-summary-psrm/) — Current Release
+### [1.1.1](https://dev.psbdx.xyz/v1-1-0-summary-psrm/) — Beta
+
+**Improvements:**
+- ⚡ Now admin can add unlimited custom statuses.
+  
+### [1.1.0](https://dev.psbdx.xyz/v1-1-0-summary-psrm/) — Beta
 
 **New Features:**
 - ✨ Unified admin menu — Report Logs now grouped under main PSBDx Reports menu
