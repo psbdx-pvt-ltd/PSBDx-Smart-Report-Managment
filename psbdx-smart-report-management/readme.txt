@@ -4,7 +4,7 @@ Tags:              report, complaint, issue tracker, ajax, order report
 Requires at least: 5.8
 Tested up to:      6.9
 Requires PHP:      7.4
-Stable tag:        1.1.1 (Beta)
+Stable tag:        1.0.1
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -85,8 +85,12 @@ We are happy to see that you are interested to read the documentations. Please v
 5. Admin dashboard widget showing report customization screen.
 
 == Changelog ==
+= 1.1.1 Beta =
 
-= 1.1.0 =
+**Improved: Optimization**
+* Now admin can unlimited custom statuses.
+
+= 1.1.0 Beta =
 
 **New: Unified admin menu**
 * Report Logs are now grouped under the main PSBDx Reports menu for easier management.
