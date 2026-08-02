@@ -1,264 +1,243 @@
-# PSBDx Smart Report Management
-
 <div align="center">
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
-[![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-777BB4.svg)](https://www.php.net/)
-[![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-blue.svg)](https://wordpress.org/)
-![Stable Release](https://img.shields.io/badge/stable%20release-1.0.1-brightgreen.svg)
+# PSBDx Smart Report Management
 
-**Contributors:** [psbdx](https://github.com/psbdx-pvt-ltd), atwfarhan, [mfhamim](https://github.com/m-farhan-hamim)
+**A fast, AI-assisted support ticket & complaint system for WordPress.**
+
+Instant AJAX forms · Ticket IDs · AI triage · WooCommerce & LearnPress integration · External REST API
+
+[![Version](https://img.shields.io/badge/version-1.4.3-1a3cff?style=flat-square)](#changelog)
+[![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)](#requirements)
+[![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](#requirements)
+[![License](https://img.shields.io/badge/license-GPL--2.0--or--later-00c896?style=flat-square)](#license)
+[![HPOS](https://img.shields.io/badge/WooCommerce%20HPOS-compatible-96588a?style=flat-square)](#requirements)
+
+[Features](#-features) · [Installation](#-installation) · [Quick Start](#-quick-start) · [External API](#-external-api) · [Developer Hooks](#-developer-hooks) · [FAQ](#-faq)
 
 </div>
 
 ---
 
-## ⚠️ BETA VERSION WARNING
+## What it does
 
-> **Version 1.1.0 is currently in BETA and may contain:**
-> - **Security vulnerabilities** that could expose your site to attacks
-> - **Stability issues** that may cause unexpected behavior or crashes
-> - **Data loss risks** from incomplete features or breaking changes
-> - **Breaking changes** between versions without migration paths
-> 
-> **Use at your own risk in production environments.** We recommend testing thoroughly in a staging/development environment first. Please report any issues to help us improve stability and security before the stable release.
+Customers report a problem — with an order, a product, a course, or anything else — through a fast AJAX modal that never reloads the page. Every submission lands in a clean, organized admin inbox with its own human-readable **Ticket ID**, ready to be triaged, replied to, and resolved — optionally with an AI doing the sorting for you.
 
----
+No support-desk bloat, no separate helpdesk to learn, no per-agent pricing. Just a focused report/complaint system that plugs straight into WooCommerce and LearnPress, and hands off to an external system via its own REST API when you need it to.
 
-## 📋 Overview
+<br>
 
-**PSBDx Smart Report Management** is an AJAX-powered report management system for WordPress e-commerce and learning platforms. It provides your customers with a seamless, non-disruptive way to report issues, submit complaints, or track order problems directly from your site.
+## ✨ Features
 
-### ✨ Key Highlights
+### Core reporting
+- ⚡ **AJAX modal form** — submits with no page reload, dropped in anywhere via shortcode
+- 🎫 **Unique Ticket IDs** on every report (`PSRM-20260714-8K3F2A`) — the reporter's reference for following up
+- 🧱 **Drag-and-drop Form Builder** — 10 field types (name, email, phone, text, paragraph, number, select, radio, checkboxes, captcha), fully reorderable
+- 🟢 **Five built-in statuses** with colour-coded badges (Processing, Contacting, Waiting, Solved, Failed), plus unlimited custom statuses
+- 🏷️ **Admin-defined categories** and Low/Medium/High priority — set manually or by AI
+- 🔒 **Server-verified identity** — reporter name/email are pulled from the WordPress session, never editable by the user, so they can't be spoofed
+- 🚦 **Per-form rate limiting**, enforced on both the frontend and the server
+- 🤖 **Captcha support** — Google reCAPTCHA, hCaptcha, and Cloudflare Turnstile
 
-- **Zero Page Reloads** — AJAX-powered modal forms for instant submissions
-- **Mobile-First Design** — Responsive with iOS safe-area support
-- **Built-in Rate Limiting** — Prevent spam with per-form cooldowns
-- **Auto-Order Linking** — Automatically connect reports to WooCommerce orders
-- **Admin Dashboard Widget** — Real-time overview of report statuses
-- **Fully Configurable** — Customize reasons, fields, statuses, and more
-- **No Dependencies** — Works standalone; optional WooCommerce & LearnPress integration
-- **HPOS Compatible** — Full support for WordPress High-Performance Order Storage
+### Conversations
+- 💬 **Threaded replies** — reporters and admins can go back and forth on a report, with live polling so a reply from either side shows up without a manual reload
+- 🌐 **A dedicated, shareable report detail page** — no admin login required, built for the reporter to follow their own ticket
 
----
+### AI (WordPress 7.0+, fully optional)
+- 🧠 **Auto-classification** — every new report gets a suggested category and priority via the built-in WordPress AI Client
+- ✍️ **AI auto-reply** — the AI can respond directly in the conversation thread, right after submission and after each follow-up
+- 📝 **"Summarize with AI"** on the report edit screen for long or vaguely-worded reports
+- 🪵 **AI Response Log** — a rolling audit trail of every AI request and response
+- Gracefully disabled with zero impact on the rest of the plugin if you're on an older WordPress version or have no provider connected
 
-## 🚀 Features
+### Notifications
+- 📧 **Configurable email notifications** — new report, reporter confirmation, new reply (to whichever side didn't just send it), and AI-error alerts, each with its own editable subject/body template and placeholder tokens
+- ✉️ **Custom sender name & email**, independent per email address — falls back to your site's normal default when left blank
 
-### Core Features
+### E-commerce & LMS
+- 🛒 **WooCommerce order auto-link**, HPOS-compatible
+- 🎓 **LearnPress** course, lesson, and quiz support alongside WooCommerce
 
-- ✅ **AJAX Modal Report Form** — No page reloads, clean user experience
-- ✅ **Mobile-First Responsive Design** — With iOS safe-area support
-- ✅ **Server-Side Identity Collection** — Reporter name and email collected securely from WordPress session (never editable by users)
-- ✅ **Admin Identity Toggle** — Show or hide reporter identity card in the form
-- ✅ **Per-Form Rate Limiting** — Enforced on frontend and server (configurable cooldown in minutes)
-- ✅ **E-Commerce Order Auto-Linking** — Reports from order pages automatically link to the order in admin
-- ✅ **Admin Dashboard Widget** — Live status counts and recent reports at a glance
-- ✅ **Configurable Report Reasons** — Comma-separated list with automatic "Other" option
-- ✅ **Optional Extra Fields** — Transaction ID, Coupon Code, custom fields, etc.
-- ✅ **Flexible Contact Field** — Required or optional per form
-- ✅ **Five Color-Coded Status Badges** — Processing, Contacting, Waiting, Solved, Failed
-- ✅ **Rich Admin List Columns** — Reporter (with avatar), Linked Order, Status, Reported Item
-- ✅ **HPOS Support** — Compatible with High-Performance Order Storage
-- ✅ **LearnPress Integration** — Support for courses, lessons, and quizzes
+### Data
+- 📤 **CSV import/export** for both report forms and report logs
+- 🗄️ Custom database tables for reply threads and (with the API) keys/sessions — nothing bolted onto core tables
 
-### Shortcodes
+### External REST API
+- 🔑 Admin-issued **API keys**, each restricted to whitelisted domains and/or server IPs
+- 🧩 **Session-based flow** — start a session, fill fields one at a time, verify an emailed OTP for an email field, then submit for a ticket ID
+- 🛡️ **Automatic restricted-hosting detection** — some free hosts (the InfinityFree family, most commonly) block inbound API-style requests at the network edge; the plugin self-tests for this and switches the API off with a clear explanation instead of leaving it silently broken
+- See [External API](#-external-api) below
 
-- `[psbdx_report id="X"]` — Display report button and modal form
-- `[psbdx_user_reports]` — Show paginated table of logged-in user's reports
+### Everywhere else
+- 📊 Admin dashboard widget and admin-bar shortcut with live unsolved-report counts
+- ❔ Built-in FAQ builder with a `[psbdx_faq]` accordion shortcode
+- 📱 Mobile-first responsive design throughout, including iOS safe-area support
 
----
+<br>
 
 ## 📦 Requirements
 
-| Requirement | Version |
-|------------|---------|
-| **WordPress** | 5.8+ |
-| **PHP** | 7.4+ |
-| **License** | [GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html) |
+| | Minimum |
+|---|---|
+| WordPress | 5.8 (7.0+ for AI features) |
+| PHP | 7.4 |
+| WooCommerce | Optional — auto-integrates when present, HPOS-compatible |
+| LearnPress | Optional — auto-integrates when present |
 
-### Optional Dependencies
+<br>
 
-- **WooCommerce 3.0+** — For e-commerce order linking and features
-- **LearnPress** — For course, lesson, and quiz page support
+## 🚀 Installation
 
----
+1. Upload the `psbdx-smart-report-management` folder to `/wp-content/plugins/`.
+2. Activate the plugin through **Plugins → Installed Plugins**.
+3. Go to **Report Forms** in the admin sidebar and click **Add New Form**.
+4. Configure the form, then copy the shortcode from the **Shortcode** box.
+5. Paste the shortcode on any page, post, or widget area.
 
-## 📥 Installation
+Alternatively, turn on global auto-display in the form settings to show the report button on all product, order, or course pages automatically — no shortcode needed.
 
-### Via WordPress Admin Panel
+<br>
 
-1. Go to **Plugins → Add New**
-2. Search for "PSBDx Smart Report Management"
-3. Click **Install Now**, then **Activate**
-4. Navigate to **Report Forms** in the sidebar
-5. Click **Add New Form** and configure your form
-6. Copy the shortcode from the **Shortcode** meta box
-7. Paste it on any page, post, or widget area
-
-### Manual Installation
-
-1. Download the latest release from GitHub
-2. Extract to `/wp-content/plugins/psbdx-smart-report-management/`
-3. Go to **Plugins → Installed Plugins**
-4. Click **Activate** next to "PSBDx Smart Report Management"
-5. Configure forms under **Report Forms** in the admin sidebar
-
-### Enable Global Auto-Display
-
-To show the report button on all product/order pages automatically:
-1. Edit a report form
-2. Enable **Auto-Display on Products/Orders** in the form settings
-3. Save — the form will now appear on all applicable pages
-
----
-
-## 🔧 Configuration
-
-### Create a New Report Form
-
-1. Go to **Report Forms → Add New**
-2. Enter a form title (e.g., "Order Issues", "Product Feedback")
-3. Configure in the settings panel:
-   - **Report Reasons** — Comma-separated list
-   - **Cooldown Period** — Minutes between submissions (default: 30)
-   - **Show Reporter Identity** — Toggle visibility of name/email card
-   - **Extra Fields** — Add custom fields (Transaction ID, etc.)
-   - **Contact Field** — Mark as required or optional
-   - **Auto-Display** — Show on all products/courses or per-item
-
-4. Click **Publish**
-5. Copy the shortcode and paste where needed
-
-### Custom Report Statuses
-
-1. Go to **PSBDx Reports → Settings**
-2. Click **Add New Status**
-3. Enter status name and choose background/text colors
-4. Save — admins can now assign this status to reports
-
-### Maintenance Tools
-
-**PSBDx Reports → Tools & Repair**
-- **Diagnostic Scan** — Read-only system health check
-- **Clear Rate Limits** — Reset cooldown transients
-- **Normalize Statuses** — Fix invalid status values
-
----
-
-## ❓ FAQ
-
-### Can guests submit reports?
-**Yes.** Guest reports are logged without a user association. The reporter name defaults to "Guest".
-
-### Can I hide the reporter identity card?
-**Yes.** Each form has a "User Identity Display" toggle. When disabled, the name/email card is hidden from the form — but identity is still collected server-side for admin records.
-
-### How does rate limiting work?
-Each form has a configurable cooldown (in minutes, default 30). After a submission, users cannot submit via that form again until the cooldown expires. This is enforced both on the frontend (form hidden) and server-side (request rejected even if UI is bypassed).
-
-### Does this plugin require other plugins?
-**No.** PSBDx Smart Report Management works standalone. WooCommerce and LearnPress integrations activate automatically when detected.
-
-### What is the order auto-link feature?
-When a user submits a report from an order page (e.g., My Account > Orders > View Order), the plugin automatically detects and stores the order ID. The admin Report Log displays a direct link to the order, and the user's report history shows the order number.
-
-### Is it HPOS compatible?
-**Yes.** The plugin declares HPOS compatibility and uses `wc_get_order()` with `get_edit_order_url()` for all order interactions.
-
-### Where can I find full documentation?
-Visit our documentation portal: https://dev.psbdx.xyz/documentations/psbdx-smart-report-managment/
-
----
-
-## 📝 Usage Examples
-
-### Basic Shortcode Usage
+## 🧩 Quick Start
 
 ```
-[psbdx_report id="123"]
+[psbdx_report id="X"]        Show a report button + modal form (X = Report Form post ID)
+[psbdx_user_reports]         The logged-in user's own report history, with ticket IDs
+[psbdx_faq]                  Your admin-managed FAQ, as a clean accordion
 ```
 
-Displays a report button that opens a modal form. Replace `123` with your Report Form post ID (shown in the Shortcode meta box).
+Turn on AI triage under **Settings → AI** (requires WordPress 7.0+ and a connected provider under **Settings → Connectors**) and every new report will arrive pre-sorted with a suggested category and priority.
 
-### Display User's Report History
+<br>
 
+## 🔌 External API
+
+Let an external system — a chatbot, another app, an integration partner — fill in and submit a report form without touching the WordPress dashboard.
+
+**1. Generate a key** — under **Settings → API**, restricted to whitelisted domains and/or server IPs.
+**2. Enable a form** — check "Allow this form to be filled via the API" in that form's Settings tab.
+**3. Walk the session:**
+
+```bash
+API="https://yoursite.com/wp-json/psbdx-srm/v1"
+KEY="psrm_9f2k7..." ; SECRET="7bQ2mZ..."
+
+# Start a session — returns a session_id and the form's field schema
+SESSION=$(curl -s -X POST "$API/start" \
+  -H "X-PSRM-Api-Key: $KEY" -H "X-PSRM-Api-Secret: $SECRET" \
+  -H "Content-Type: application/json" -d '{}' | jq -r '.session_id')
+
+# Fill a field
+curl -s -X POST "$API/field" \
+  -H "X-PSRM-Api-Key: $KEY" -H "X-PSRM-Api-Secret: $SECRET" \
+  -H "Content-Type: application/json" \
+  -d "{\"session_id\":\"$SESSION\",\"handle\":\"report_details\",\"value\":\"Charged twice.\"}"
+
+# An email field triggers a one-time code instead of storing it directly —
+# confirm it with /verify-otp, then...
+
+# Submit — creates the report and returns a ticket_id
+curl -s -X POST "$API/submit" \
+  -H "X-PSRM-Api-Key: $KEY" -H "X-PSRM-Api-Secret: $SECRET" \
+  -H "Content-Type: application/json" -d "{\"session_id\":\"$SESSION\"}"
+
+# Check on it later — no session needed
+curl "$API/ticket/PSRM-20260731-7K3F2A/status" \
+  -H "X-PSRM-Api-Key: $KEY" -H "X-PSRM-Api-Secret: $SECRET"
 ```
-[psbdx_user_reports]
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /start` | Open a session, get the field schema |
+| `POST /field` | Fill one field at a time |
+| `POST /verify-otp` | Confirm an emailed code for an email field |
+| `POST /submit` | Create the report, get a `ticket_id` back |
+| `GET /ticket/{id}/status` | Look up a ticket's current status |
+| `GET /ping` | Unauthenticated health check |
+
+> **On a hosting provider that blocks inbound API calls?** The plugin runs a live self-test (the same technique Core's own Site Health "REST API availability" check uses) and switches the sensitive endpoints off automatically rather than leaving them silently broken — with a manual override if you've confirmed your host is fine.
+
+<br>
+
+## 🛠 Developer Hooks
+
+Listen for report status changes instead of polling the database — these fire from the one place in the plugin that ever writes a report's status:
+
+```php
+add_action( 'psbdx_srm_report_status_changed', function ( $report_id, $old_status, $new_status, $context ) {
+    error_log( sprintf(
+        'Ticket %s (user #%d): %s -> %s',
+        $context['ticket_id'],
+        $context['submitter_id'],
+        $context['old_status'] ?? '(new)',
+        $new_status
+    ) );
+}, 10, 4 );
+
+// Or listen for one specific transition only:
+add_action( 'psbdx_srm_report_status_changed_to_solved', function ( $report_id, $old_status, $context ) {
+    // ...
+}, 10, 3 );
 ```
 
-Shows a paginated table of reports submitted by the currently logged-in user.
+`$context` includes `ticket_id`, `submitter_id`, `submitter_email`, `old_status`, `new_status`, `changed_by`, `updated_at` / `updated_at_local`, and `source` (`submission`, `admin`, or another value a specific integration passes).
 
-### Auto-Display on All Products
+> Bulk operations (CSV import, the Repair & Reset "fix invalid status values" tool) intentionally skip these hooks, since they're bulk restores rather than individual live changes.
 
-1. Create a report form in **Report Forms → Add New**
-2. Toggle **Auto-Display on All Products** in the form settings
-3. Save — the report button now appears on all product pages automatically
+<br>
 
----
-
-## 📂 Plugin Structure
+## 📁 Project Structure
 
 ```
 psbdx-smart-report-management/
-├── assets/
-│   ├── css/
-│   ├── js/
-│   └── images/
-├── includes/
-│   ├── class-*.php
-│   └── functions.php
-├── admin/
-│   ├── pages/
-│   ├── metaboxes/
-│   └── class-admin.php
-├── public/
-│   ├── shortcodes/
-│   └── class-public.php
-├── psbdx-smart-report-management.php
-├── README.md
-└── LICENSE
+├── admin/          Admin screens — form builder, settings, meta boxes, CSV, dashboard widget
+├── includes/        Core logic — post types, helpers, AI, email, replies, API, hosting guard
+├── public/          Frontend — AJAX handlers, asset loading, shortcodes, report detail page
+├── assets/          CSS/JS
+└── languages/       Translation files
 ```
 
----
+<br>
 
-## 🐛 Changelog
+## ❓ FAQ
 
-### [1.1.1](https://dev.psbdx.xyz/v1-1-0-summary-psrm/) — Beta
+**Does this plugin require WooCommerce or LearnPress?**
+No. It works standalone — those integrations activate automatically when the respective plugin is present.
 
-**Improvements:**
-- ⚡ Now admin can add unlimited custom statuses.
-  
-### [1.1.0](https://dev.psbdx.xyz/v1-1-0-summary-psrm/) — Beta
+**What happens on an older WordPress version, or with no AI provider connected?**
+Nothing breaks. AI controls are automatically greyed out, and admins can still set Category/Priority manually on every report, exactly as if AI were never part of the plugin.
 
-**New Features:**
-- ✨ Unified admin menu — Report Logs now grouped under main PSBDx Reports menu
-- ✨ Custom statuses — Admins can add custom report statuses with custom colors
-- ✨ Repair & Reset tools — Maintenance screen with diagnostic scan and utilities
-- ✨ Conflict guard — Auto-detects plugin conflicts and prevents fatal errors
+**Can guests submit reports?**
+Yes — logged without a user association, reporter name defaults to "Guest".
 
-**Improvements:**
-- ⚡ Optimized dashboard status counts to reduce database load
+**Is it HPOS-compatible?**
+Yes — the plugin declares HPOS compatibility and uses `wc_get_order()` / `get_edit_order_url()` for all order links.
 
-### [1.0.1](https://dev.psbdx.xyz/v1-0-1-summary-psrm/)
+**Where can I read the full documentation?**
+[dev.psbdx.xyz/documentations/psbdx-smart-report-managment](https://dev.psbdx.xyz/documentations/psbdx-smart-report-managment/)
 
-**New Features:**
-- 📢 Admin Review Notice — Dismissible notification requesting WordPress.org review
-- 📚 Documentation Link — Quick access link on WordPress Plugins page
+<br>
 
-**Improvements:**
-- 🔧 Enhanced multisite compatibility
-- 🌍 Per-site language settings support
-- 🔄 Lazy activation stamping for backward compatibility
+## 📋 Changelog
 
-### [1.0.0](https://dev.psbdx.xyz/v1-0-0-summary-psrm/) — Launch
+Highlights from the latest release — full history in [`readme.txt`](./readme.txt).
 
-- 🎉 Initial release
-- Full plugin architecture following WordPress standards
-- AJAX modal with mobile-first design
-- Server-side identity collection
-- Per-form rate limiting
-- WooCommerce order auto-link
-- Admin dashboard widget
-- LearnPress integration
+**1.4.3**
+- New External REST API with session-based submission and email OTP verification
+- Automatic restricted-hosting detection for the API (e.g. InfinityFree-family hosts)
+- Custom sender name/email for outgoing notifications
+- Fixed a critical issue where AI classification/auto-reply could fatal a report submission on hosts with a tight `max_execution_time`
+- Fixed a double-unslash bug in email template saving, and a deprecated `get_page_by_title()` call in CSV import
 
----
+<br>
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome. If you're proposing a larger change, please open an issue first to discuss the direction.
+
+## 📄 License
+
+GPL-2.0-or-later — see the [full license text](https://www.gnu.org/licenses/gpl-2.0.html).
+
+## 👤 Author
+
+Built by [PSBDx](https://dev.psbdx.xyz) — [M. Farhan Hamim](https://profiles.wordpress.org/mfhamim)
