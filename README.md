@@ -6,7 +6,7 @@
 
 Instant AJAX forms · Ticket IDs · AI triage · WooCommerce & LearnPress integration · External REST API
 
-[![Version](https://img.shields.io/badge/version-1.4.3-1a3cff?style=flat-square)](#changelog)
+[![Version](https://img.shields.io/badge/version-1.4.4-1a3cff?style=flat-square)](#changelog)
 [![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)](#requirements)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](#requirements)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-00c896?style=flat-square)](#license)
@@ -147,6 +147,7 @@ curl "$API/ticket/PSRM-20260731-7K3F2A/status" \
 
 | Endpoint | Purpose |
 |---|---|
+| `GET /fields` | Get a form's field schema — no session required |
 | `POST /start` | Open a session, get the field schema |
 | `POST /field` | Fill one field at a time |
 | `POST /verify-otp` | Confirm an emailed code for an email field |
@@ -220,6 +221,10 @@ Yes — the plugin declares HPOS compatibility and uses `wc_get_order()` / `get_
 ## 📋 Changelog
 
 Highlights from the latest release — full history in [`readme.txt`](./readme.txt).
+
+**1.4.4**
+- New site-wide "Always require a verified email on every API submission" option — adds an extra Email field to every API-enabled form for API callers, independent of what the form itself already collects
+- Security hardening pass on the External API: brute-force lockout after repeated failed authentication, peppered secret hashing for new keys, and OTP send throttling to prevent the verification endpoint being used to spam arbitrary addresses
 
 **1.4.3**
 - New External REST API with session-based submission and email OTP verification
