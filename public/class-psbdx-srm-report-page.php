@@ -166,7 +166,7 @@ class PSBDX_SRM_Report_Page {
 		// If that's the case here, load them directly instead.
 		if ( ! wp_style_is( 'psbdx-srm-public', 'done' ) && ! wp_style_is( 'psbdx-srm-public', 'enqueued' ) ) {
 			PSBDX_SRM_Assets::print_style_tag( 'dashicons', includes_url( 'css/dashicons.min.css' ) );
-			PSBDX_SRM_Assets::print_style_tag( 'psbdx-srm-public', PSBDX_SRM_URL . 'assets/css/public.css?ver=' . PSBDX_SRM_VERSION );
+			PSBDX_SRM_Assets::print_style_tag( 'psbdx-srm-public', PSBDX_SRM_URL . 'assets/css/public.css?ver=' . psbdx_srm_asset_ver( 'assets/css/public.css' ) );
 		}
 		?>
 		<div class="psbdx-report-page">
@@ -228,7 +228,15 @@ class PSBDX_SRM_Report_Page {
 				</h2>
 				<?php echo PSBDX_SRM_Shortcodes::render_thread_html( $report_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped internally per-field. ?>
 				<form class="psbdx-thread-reply-form" data-report-id="<?php echo (int) $report_id; ?>" data-email="<?php echo esc_attr( $email ); ?>">
-					<textarea class="psbdx-thread-reply-input" rows="3" placeholder="<?php esc_attr_e( 'Write a reply…', 'psbdx-smart-report-management' ); ?>" required></textarea>
+					<textarea class="psbdx-thread-reply-input" rows="3" placeholder="<?php esc_attr_e( 'Write a reply…', 'psbdx-smart-report-management' ); ?>"></textarea>
+					<div class="psbdx-thread-reply-attach-row">
+						<label class="psbdx-thread-reply-attach-btn">
+							<span class="dashicons dashicons-paperclip" aria-hidden="true"></span>
+							<?php esc_html_e( 'Attach a file', 'psbdx-smart-report-management' ); ?>
+							<input type="file" class="psbdx-thread-reply-file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" hidden>
+						</label>
+						<span class="psbdx-thread-reply-file-name"></span>
+					</div>
 					<div class="psbdx-thread-reply-footer">
 						<span class="psbdx-thread-reply-status" role="status" aria-live="polite"></span>
 						<button type="submit" class="psbdx-thread-reply-send">
@@ -253,7 +261,7 @@ class PSBDX_SRM_Report_Page {
 		// safe to fall back here even in the rare case both copies load.
 		if ( ! wp_script_is( 'psbdx-srm-public', 'done' ) ) {
 			echo '<script id="psbdx-srm-public-js-extra">window.psbdxSrm = ' . wp_json_encode( PSBDX_SRM_Assets::get_localized_data() ) . ';</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode() output is safe JS; no user input here.
-			PSBDX_SRM_Assets::print_script_tag( 'psbdx-srm-public', PSBDX_SRM_URL . 'assets/js/public.js?ver=' . PSBDX_SRM_VERSION );
+			PSBDX_SRM_Assets::print_script_tag( 'psbdx-srm-public', PSBDX_SRM_URL . 'assets/js/public.js?ver=' . psbdx_srm_asset_ver( 'assets/js/public.js' ) );
 		}
 	}
 }

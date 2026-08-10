@@ -598,7 +598,7 @@ class PSBDX_SRM_API {
 			return new WP_Error( 'psrm_api_unauthorized', __( 'Missing API key or secret.', 'psbdx-smart-report-management' ), array( 'status' => 401 ) );
 		}
 
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::keys_table() . ' WHERE key_id = %s', $key_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::keys_table() . ' WHERE key_id = %s', $key_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name comes from self::keys_table(), not user input; the value IS parameterized via $wpdb->prepare()'s %s.
 
 		if ( ! $row || 'active' !== $row->status ) {
 			$this->record_auth_failure( $ip );
@@ -637,7 +637,7 @@ class PSBDX_SRM_API {
 		// only *sustained* abuse should ever trigger a lockout.
 		$this->clear_auth_failures( $ip );
 
-		$wpdb->update( self::keys_table(), array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ), array( '%s' ), array( '%d' ) );
+		$wpdb->update( self::keys_table(), array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'id' => $row->id ), array( '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 
 		return $row;
 	}
@@ -791,7 +791,7 @@ class PSBDX_SRM_API {
 		$now           = current_time( 'mysql', true );
 		$expires       = gmdate( 'Y-m-d H:i:s', time() + self::SESSION_TTL );
 
-		$wpdb->insert(
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->insert() prepares/escapes internally; a single-row write doesn't need caching.
 			self::sessions_table(),
 			array(
 				'session_token' => $session_token,
@@ -957,7 +957,7 @@ class PSBDX_SRM_API {
 			return new WP_Error( 'psrm_api_session_required', __( 'session_id is required.', 'psbdx-smart-report-management' ), array( 'status' => 400 ) );
 		}
 
-		$session = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::sessions_table() . ' WHERE session_token = %s', $token ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$session = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::sessions_table() . ' WHERE session_token = %s', $token ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name comes from self::sessions_table(), not user input; the value IS parameterized via $wpdb->prepare()'s %s.
 
 		if ( ! $session || (int) $session->api_key_id !== (int) $key_row->id ) {
 			return new WP_Error( 'psrm_api_session_invalid', __( 'Unknown session.', 'psbdx-smart-report-management' ), array( 'status' => 404 ) );
@@ -968,7 +968,7 @@ class PSBDX_SRM_API {
 		}
 
 		if ( strtotime( $session->expires_at . ' UTC' ) < time() ) {
-			$wpdb->update( self::sessions_table(), array( 'status' => 'expired' ), array( 'id' => $session->id ) );
+			$wpdb->update( self::sessions_table(), array( 'status' => 'expired' ), array( 'id' => $session->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			return new WP_Error( 'psrm_api_session_expired', __( 'This session has expired. Start a new one.', 'psbdx-smart-report-management' ), array( 'status' => 409 ) );
 		}
 
@@ -1030,7 +1030,7 @@ class PSBDX_SRM_API {
 		$field_values = is_array( $field_values ) ? $field_values : array();
 		$field_values[ $handle ] = $validated;
 
-		$wpdb->update(
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			self::sessions_table(),
 			array(
 				'field_values' => wp_json_encode( $field_values ),
@@ -1144,7 +1144,7 @@ class PSBDX_SRM_API {
 		$otp_hash = hash( 'sha256', $code . $session->session_token );
 
 		global $wpdb;
-		$wpdb->update(
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			self::sessions_table(),
 			array(
 				'pending_email_handle' => $handle,
@@ -1292,7 +1292,7 @@ class PSBDX_SRM_API {
 		global $wpdb;
 
 		if ( ! hash_equals( (string) $session->otp_hash, $hash ) ) {
-			$wpdb->update( self::sessions_table(), array( 'otp_attempts' => (int) $session->otp_attempts + 1 ), array( 'id' => $session->id ) );
+			$wpdb->update( self::sessions_table(), array( 'otp_attempts' => (int) $session->otp_attempts + 1 ), array( 'id' => $session->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			return new WP_Error( 'psrm_api_otp_invalid', __( 'Incorrect code.', 'psbdx-smart-report-management' ), array( 'status' => 400 ) );
 		}
 
@@ -1300,7 +1300,7 @@ class PSBDX_SRM_API {
 		$field_values = is_array( $field_values ) ? $field_values : array();
 		$field_values[ $session->pending_email_handle ] = $session->pending_email_value;
 
-		$wpdb->update(
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			self::sessions_table(),
 			array(
 				'field_values'          => wp_json_encode( $field_values ),
@@ -1465,7 +1465,7 @@ class PSBDX_SRM_API {
 		}
 
 		global $wpdb;
-		$wpdb->update(
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			self::sessions_table(),
 			array(
 				'status'     => 'completed',
@@ -1574,7 +1574,7 @@ class PSBDX_SRM_API {
 			$key_id = 'psrm_' . strtolower( wp_generate_password( 20, false, false ) );
 			$secret = wp_generate_password( 40, false, false );
 
-			$wpdb->insert(
+			$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->insert() prepares/escapes internally; a single-row write doesn't need caching.
 				self::keys_table(),
 				array(
 					'key_id'          => $key_id,
@@ -1600,7 +1600,7 @@ class PSBDX_SRM_API {
 			check_admin_referer( 'psbdx_srm_api_toggle' );
 			$id     = absint( $_POST['api_key_row_id'] ?? 0 );
 			$status = ( 'active' === sanitize_key( $_POST['new_status'] ?? '' ) ) ? 'active' : 'revoked';
-			$wpdb->update( self::keys_table(), array( 'status' => $status ), array( 'id' => $id ), array( '%s' ), array( '%d' ) );
+			$wpdb->update( self::keys_table(), array( 'status' => $status ), array( 'id' => $id ), array( '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() prepares/escapes internally; a single-row write doesn't need caching.
 			add_settings_error( 'psbdx_srm_settings', 'api_key_updated', __( 'API key updated.', 'psbdx-smart-report-management' ), 'success' );
 			return;
 		}
@@ -1608,7 +1608,7 @@ class PSBDX_SRM_API {
 		if ( isset( $_POST['psbdx_srm_api_delete'] ) ) {
 			check_admin_referer( 'psbdx_srm_api_delete' );
 			$id = absint( $_POST['api_key_row_id'] ?? 0 );
-			$wpdb->delete( self::keys_table(), array( 'id' => $id ), array( '%d' ) );
+			$wpdb->delete( self::keys_table(), array( 'id' => $id ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->delete() prepares/escapes internally; a single-row delete doesn't need caching.
 			add_settings_error( 'psbdx_srm_settings', 'api_key_deleted', __( 'API key deleted.', 'psbdx-smart-report-management' ), 'success' );
 			return;
 		}
@@ -1631,7 +1631,7 @@ class PSBDX_SRM_API {
 
 		global $wpdb;
 
-		$keys      = $wpdb->get_results( 'SELECT * FROM ' . self::keys_table() . ' ORDER BY created_at DESC' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$keys      = $wpdb->get_results( 'SELECT * FROM ' . self::keys_table() . ' ORDER BY created_at DESC' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name comes from self::keys_table(), not user input; no user-supplied values in this query, an admin-only settings screen list.
 		$new_key   = get_transient( self::NEW_KEY_TRANSIENT_PREFIX . get_current_user_id() );
 		$base_url  = trailingslashit( rest_url( self::API_NAMESPACE ) );
 

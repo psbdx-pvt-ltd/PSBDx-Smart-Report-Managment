@@ -110,11 +110,13 @@ class PSBDX_SRM_Admin_Tools {
 			// $_POST value and unslashes each field itself — do NOT
 			// wp_unslash() here too, or a literal backslash the admin typed
 			// into a subject/body (e.g. a Windows path) gets stripped twice.
-			$posted = isset( $_POST['psbdx_email'] ) ? $_POST['psbdx_email'] : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Missing -- nonce already verified above; unslashed + sanitized field-by-field in save_templates().
+			$posted = isset( $_POST['psbdx_email'] ) ? $_POST['psbdx_email'] : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing -- nonce already verified above; unslashed + sanitized field-by-field in save_templates().
 			PSBDX_SRM_Emails::save_templates( is_array( $posted ) ? $posted : array() );
 
-			$sender = isset( $_POST['psbdx_email_sender'] ) && is_array( $_POST['psbdx_email_sender'] ) ? wp_unslash( $_POST['psbdx_email_sender'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Missing -- nonce already verified above; sanitized in save_sender().
+			$sender = isset( $_POST['psbdx_email_sender'] ) && is_array( $_POST['psbdx_email_sender'] ) ? wp_unslash( $_POST['psbdx_email_sender'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing -- nonce already verified above; sanitized in save_sender().
 			PSBDX_SRM_Emails::save_sender( $sender['name'] ?? '', $sender['email'] ?? '' );
+
+			update_option( PSBDX_SRM_Emails::ATTACH_FILES_OPTION, isset( $_POST['psbdx_email_attach_files'] ) ? 'yes' : 'no', false );
 
 			add_settings_error(
 				'psbdx_srm_settings',
@@ -936,6 +938,14 @@ class PSBDX_SRM_Admin_Tools {
 							value="<?php echo esc_attr( $sender['email'] ); ?>">
 						<p class="description"><?php esc_html_e( 'Requests this exact address as the sender on every email. Some hosts/SMTP setups may still show their own mailbox regardless — this depends on how mail is actually delivered on your server.', 'psbdx-smart-report-management' ); ?></p>
 					</p>
+
+					<p>
+						<label>
+							<input type="checkbox" name="psbdx_email_attach_files" value="1" <?php checked( PSBDX_SRM_Emails::attach_files_enabled() ); ?>>
+							<strong><?php esc_html_e( 'Add attachments to email', 'psbdx-smart-report-management' ); ?></strong>
+						</label>
+						<p class="description"><?php esc_html_e( 'When a reply includes a shared file, physically attach it to the reply notification email. When off (default), the email just shows an "Attachment" note instead of the real file or a link to it — safer for deliverability and privacy.', 'psbdx-smart-report-management' ); ?></p>
+					</p>
 				</div>
 			</div>
 
@@ -1077,6 +1087,12 @@ class PSBDX_SRM_Admin_Tools {
 			<h2 class="title" style="margin-top:2em;"><?php esc_html_e( 'Maintenance actions', 'psbdx-smart-report-management' ); ?></h2>
 			<ul style="max-width:920px;">
 				<li>
+					<a href="<?php echo esc_url( PSBDX_SRM_Setup_Wizard::get_restart_url() ); ?>" class="button">
+						<?php esc_html_e( 'Restart Setup Wizard', 'psbdx-smart-report-management' ); ?>
+					</a>
+					<p class="description"><?php esc_html_e( 'Re-run the guided setup at any time — your current settings are shown pre-filled, and nothing is changed until you click "Finish Setup" again.', 'psbdx-smart-report-management' ); ?></p>
+				</li>
+				<li style="margin-top:16px;">
 					<form method="post" style="display:inline;" onsubmit="return confirm('<?php echo esc_js( __( 'Clear all report cooldown / rate-limit locks? Users will be able to submit again immediately.', 'psbdx-smart-report-management' ) ); ?>');">
 						<?php wp_nonce_field( 'psbdx_srm_repair' ); ?>
 						<input type="hidden" name="psbdx_srm_repair_action" value="clear_rate_limits">

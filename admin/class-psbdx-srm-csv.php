@@ -75,14 +75,14 @@ class PSBDX_SRM_CSV {
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename=' . $filename );
 
-		$out = fopen( 'php://output', 'w' );
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- streaming a generated CSV straight to the browser response; WP_Filesystem has no equivalent for php://output.
 		fputcsv( $out, $header );
 
 		foreach ( $rows as $row ) {
 			fputcsv( $out, $row );
 		}
 
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- pairs with the php://output stream opened above.
 		exit;
 	}
 
@@ -96,7 +96,7 @@ class PSBDX_SRM_CSV {
 	 */
 	private static function read_csv( $tmp_path ) {
 		$rows   = array();
-		$handle = fopen( $tmp_path, 'r' );
+		$handle = fopen( $tmp_path, 'r' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- reading an already-validated PHP upload tmp file for row-by-row CSV parsing (fgetcsv); WP_Filesystem has no streaming-read equivalent.
 
 		if ( ! $handle ) {
 			return $rows;
@@ -105,7 +105,7 @@ class PSBDX_SRM_CSV {
 		$header = fgetcsv( $handle );
 
 		if ( ! $header ) {
-			fclose( $handle );
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- pairs with the fopen() above.
 			return $rows;
 		}
 
@@ -118,7 +118,7 @@ class PSBDX_SRM_CSV {
 			$rows[] = array_combine( $header, array_pad( $line, count( $header ), '' ) );
 		}
 
-		fclose( $handle );
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- pairs with the fopen() above.
 
 		return $rows;
 	}
@@ -131,11 +131,11 @@ class PSBDX_SRM_CSV {
 	 * @return string|WP_Error
 	 */
 	private static function validate_upload( $field ) {
-		if ( empty( $_FILES[ $field ] ) || ! isset( $_FILES[ $field ]['error'] ) || UPLOAD_ERR_OK !== $_FILES[ $field ]['error'] ) {
+		if ( empty( $_FILES[ $field ] ) || ! isset( $_FILES[ $field ]['error'] ) || UPLOAD_ERR_OK !== $_FILES[ $field ]['error'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce already verified by every caller (check_admin_referer()) before validate_upload() is ever reached.
 			return new WP_Error( 'psbdx_no_file', __( 'Please choose a CSV file to upload.', 'psbdx-smart-report-management' ) );
 		}
 
-		$file = $_FILES[ $field ]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- file upload array, not user text input.
+		$file = $_FILES[ $field ]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing -- file upload array, not user text input; nonce already verified by the caller, see above.
 		$ext  = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
 
 		if ( 'csv' !== $ext ) {

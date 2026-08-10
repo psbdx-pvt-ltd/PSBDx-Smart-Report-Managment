@@ -45,14 +45,14 @@ class PSBDX_SRM_Assets {
 			'psbdx-srm-public',
 			PSBDX_SRM_URL . 'assets/css/public.css',
 			array( 'dashicons' ),
-			PSBDX_SRM_VERSION
+			psbdx_srm_asset_ver( 'assets/css/public.css' )
 		);
 
 		wp_enqueue_script(
 			'psbdx-srm-public',
 			PSBDX_SRM_URL . 'assets/js/public.js',
 			array(),
-			PSBDX_SRM_VERSION,
+			psbdx_srm_asset_ver( 'assets/js/public.js' ),
 			true
 		);
 
@@ -103,6 +103,7 @@ class PSBDX_SRM_Assets {
 			'replyAction' => PSBDX_SRM_Ajax::REPLY_ACTION,
 			'pollNonce'   => wp_create_nonce( 'psbdx_srm_poll_thread_nonce' ),
 			'pollAction'  => PSBDX_SRM_Ajax::POLL_ACTION,
+			'popupAction' => PSBDX_SRM_Ajax::POPUP_ACTION,
 			'i18n'     => array(
 				'sending'       => __( 'Sending\u2026',                              'psbdx-smart-report-management' ),
 				'submitted'     => __( 'Report Submitted!',                          'psbdx-smart-report-management' ),

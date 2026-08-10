@@ -146,18 +146,29 @@ class PSBDX_SRM_Meta_Boxes {
 	 * @return void
 	 */
 	public function render_shortcode_box( $post ) {
-		$shortcode = sprintf( '[psbdx_report id="%d"]', $post->ID );
+		$shortcode        = sprintf( '[psbdx_report id="%d"]', $post->ID );
+		$inline_shortcode = sprintf( '[psbdx_report id="%d" mode="inline"]', $post->ID );
 		?>
-		<p class="psbdx-meta-hint"><?php esc_html_e( 'Copy and paste anywhere on your site:', 'psbdx-smart-report-management' ); ?></p>
+		<p class="psbdx-meta-hint"><?php esc_html_e( 'Button that opens a popup form — copy and paste anywhere on your site:', 'psbdx-smart-report-management' ); ?></p>
 		<div class="psbdx-copy-row">
 			<code id="psbdx-sc-<?php echo esc_attr( $post->ID ); ?>"><?php echo esc_html( $shortcode ); ?></code>
 			<button type="button" class="button button-small psbdx-copy-btn" data-target="psbdx-sc-<?php echo esc_attr( $post->ID ); ?>">
 				<?php esc_html_e( 'Copy', 'psbdx-smart-report-management' ); ?>
 			</button>
 		</div>
+		<p class="psbdx-meta-hint" style="margin-top:12px;"><?php esc_html_e( 'Or embed the form directly in the page (no button, always visible):', 'psbdx-smart-report-management' ); ?></p>
+		<div class="psbdx-copy-row">
+			<code id="psbdx-sc-inline-<?php echo esc_attr( $post->ID ); ?>"><?php echo esc_html( $inline_shortcode ); ?></code>
+			<button type="button" class="button button-small psbdx-copy-btn" data-target="psbdx-sc-inline-<?php echo esc_attr( $post->ID ); ?>">
+				<?php esc_html_e( 'Copy', 'psbdx-smart-report-management' ); ?>
+			</button>
+		</div>
 		<p class="psbdx-meta-hint" style="margin-top:12px;">
 			<?php esc_html_e( 'User reports table:', 'psbdx-smart-report-management' ); ?>
 			<code>[psbdx_user_reports]</code>
+		</p>
+		<p class="psbdx-meta-hint" style="margin-top:12px;">
+			<?php esc_html_e( 'Want this form to pop up as an overlay on any URL instead? Turn on "Enable popup link" under the Settings tab below.', 'psbdx-smart-report-management' ); ?>
 		</p>
 		<?php
 	}
@@ -549,6 +560,14 @@ class PSBDX_SRM_Meta_Boxes {
 			<div class="psbdx-admin-reply-box">
 				<textarea id="psbdx-admin-reply-text-<?php echo (int) $post->ID; ?>" class="large-text" rows="4"
 					placeholder="<?php esc_attr_e( 'Write a reply to the reporter…', 'psbdx-smart-report-management' ); ?>"></textarea>
+				<p class="psbdx-admin-reply-attach-row">
+					<label class="psbdx-admin-reply-attach-btn">
+						<span class="dashicons dashicons-paperclip" aria-hidden="true"></span>
+						<?php esc_html_e( 'Attach a file', 'psbdx-smart-report-management' ); ?>
+						<input type="file" id="psbdx-admin-reply-file-<?php echo (int) $post->ID; ?>" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" hidden>
+					</label>
+					<span class="psbdx-admin-reply-file-name" id="psbdx-admin-reply-file-name-<?php echo (int) $post->ID; ?>"></span>
+				</p>
 				<p class="psbdx-admin-reply-actions">
 					<button type="button" class="button button-primary psbdx-admin-reply-send"
 						data-post-id="<?php echo esc_attr( $post->ID ); ?>"
@@ -584,8 +603,17 @@ class PSBDX_SRM_Meta_Boxes {
 			if ( ! wrap ) { return; }
 
 			var textarea = document.getElementById( 'psbdx-admin-reply-text-' + postId );
+			var fileInput = document.getElementById( 'psbdx-admin-reply-file-' + postId );
+			var fileNameEl = document.getElementById( 'psbdx-admin-reply-file-name-' + postId );
 			var listEl   = document.getElementById( 'psbdx-admin-thread-list-' + postId );
 			var statusEl = document.getElementById( 'psbdx-admin-reply-status-' + postId );
+
+			if ( fileInput ) {
+				fileInput.addEventListener( 'change', function () {
+					var file = fileInput.files && fileInput.files[ 0 ];
+					if ( fileNameEl ) { fileNameEl.textContent = file ? file.name : ''; }
+				} );
+			}
 
 			function setStatus( text, isError ) {
 				if ( ! statusEl ) { return; }
@@ -623,12 +651,24 @@ class PSBDX_SRM_Meta_Boxes {
 			if ( sendBtn ) {
 				sendBtn.addEventListener( 'click', function () {
 					var message = textarea ? textarea.value.trim() : '';
-					if ( '' === message ) { return; }
+					var file    = ( fileInput && fileInput.files && fileInput.files[ 0 ] ) ? fileInput.files[ 0 ] : null;
+					if ( '' === message && ! file ) { return; }
 
 					setStatus( '<?php echo esc_js( __( 'Submitting with PSBDx…', 'psbdx-smart-report-management' ) ); ?>' );
 
+					var body = new FormData();
+					body.append( 'action', 'psbdx_srm_add_admin_reply' );
+					body.append( 'security', sendBtn.getAttribute( 'data-nonce' ) );
+					body.append( 'post_id', postId );
+					body.append( 'message', message );
+					if ( file ) { body.append( 'reply_attachment', file ); }
+
+					sendBtn.disabled = true;
+
 					withMinDelay(
-						post( 'psbdx_srm_add_admin_reply', { nonce: sendBtn.getAttribute( 'data-nonce' ), message: message }, sendBtn ),
+						fetch( ajaxurl, { method: 'POST', body: body, credentials: 'same-origin' } )
+							.then( function ( r ) { return r.json(); } )
+							.finally( function () { sendBtn.disabled = false; } ),
 						2000
 					)
 						.then( function ( data ) {
@@ -638,6 +678,8 @@ class PSBDX_SRM_Meta_Boxes {
 									listEl.setAttribute( 'data-count', String( data.data.count || 0 ) );
 								}
 								if ( textarea ) { textarea.value = ''; }
+								if ( fileInput ) { fileInput.value = ''; }
+								if ( fileNameEl ) { fileNameEl.textContent = ''; }
 								setStatus( '' );
 							} else {
 								setStatus( data.data || '<?php echo esc_js( __( 'Could not send reply.', 'psbdx-smart-report-management' ) ); ?>', true );
@@ -783,15 +825,44 @@ class PSBDX_SRM_Meta_Boxes {
 			wp_send_json_error( __( 'Replies are not enabled for this report.', 'psbdx-smart-report-management' ) );
 		}
 
-		if ( '' === trim( $message ) ) {
-			wp_send_json_error( __( 'Please write a message first.', 'psbdx-smart-report-management' ) );
+		// Optional attachment, shared alongside the message — same
+		// validate/upload path as everywhere else a file gets attached to
+		// a report (see PSBDX_SRM_Ajax::validate_and_upload_file()).
+		$attachment_id = 0;
+
+		if ( isset( $_FILES['reply_attachment']['name'] ) && '' !== $_FILES['reply_attachment']['name'] ) {
+			$file = array(
+				'name'     => sanitize_file_name( wp_unslash( $_FILES['reply_attachment']['name'] ) ),
+				'type'     => sanitize_text_field( wp_unslash( $_FILES['reply_attachment']['type'] ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- index existence is checked by the isset() this block starts with; nonce already verified above via check_ajax_referer().
+				'tmp_name' => $_FILES['reply_attachment']['tmp_name'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- server-generated path, not user input; see above.
+				'error'    => (int) $_FILES['reply_attachment']['error'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+				'size'     => (int) $_FILES['reply_attachment']['size'], // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+			);
+
+			if ( UPLOAD_ERR_NO_FILE !== $file['error'] ) {
+				$attachment_id = PSBDX_SRM_Ajax::validate_and_upload_file(
+					$file,
+					__( 'Attachment', 'psbdx-smart-report-management' ),
+					PSBDX_SRM_Ajax::REPLY_ATTACHMENT_TYPES,
+					0,
+					PSBDX_SRM_Ajax::REPLY_ATTACHMENT_MAX_KB
+				);
+			}
+		}
+
+		if ( '' === trim( $message ) && ! $attachment_id ) {
+			wp_send_json_error( __( 'Please write a message or attach a file first.', 'psbdx-smart-report-management' ) );
 		}
 
 		$user = wp_get_current_user();
-		$ok   = PSBDX_SRM_Replies::add_reply( $post_id, 'admin', $user->ID, $user->display_name, $message );
+		$ok   = PSBDX_SRM_Replies::add_reply( $post_id, 'admin', $user->ID, $user->display_name, $message, false, $attachment_id );
 
 		if ( ! $ok ) {
 			wp_send_json_error( __( 'Failed to save the reply.', 'psbdx-smart-report-management' ) );
+		}
+
+		if ( $attachment_id ) {
+			wp_update_post( array( 'ID' => $attachment_id, 'post_parent' => $post_id ) );
 		}
 
 		wp_send_json_success( array(

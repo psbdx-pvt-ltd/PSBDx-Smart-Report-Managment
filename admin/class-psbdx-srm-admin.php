@@ -59,6 +59,14 @@ class PSBDX_SRM_Admin {
 				esc_url( admin_url( 'admin.php?page=' . PSBDX_SRM_Admin_Tools::PAGE_REPAIR ) ),
 				esc_html__( 'Repair & Reset', 'psbdx-smart-report-management' )
 			);
+
+			if ( class_exists( 'PSBDX_SRM_Setup_Wizard' ) ) {
+				$prepend[] = sprintf(
+					'<a href="%s">%s</a>',
+					esc_url( PSBDX_SRM_Setup_Wizard::get_restart_url() ),
+					esc_html__( 'Setup Wizard', 'psbdx-smart-report-management' )
+				);
+			}
 		}
 
 		$prepend[] = sprintf(
@@ -355,14 +363,14 @@ class PSBDX_SRM_Admin {
 			'psbdx-srm-admin',
 			PSBDX_SRM_URL . 'assets/css/admin.css',
 			array(),
-			PSBDX_SRM_VERSION
+			psbdx_srm_asset_ver( 'assets/css/admin.css' )
 		);
 
 		wp_enqueue_script(
 			'psbdx-srm-admin',
 			PSBDX_SRM_URL . 'assets/js/admin.js',
 			array(),
-			PSBDX_SRM_VERSION,
+			psbdx_srm_asset_ver( 'assets/js/admin.js' ),
 			true
 		);
 	}

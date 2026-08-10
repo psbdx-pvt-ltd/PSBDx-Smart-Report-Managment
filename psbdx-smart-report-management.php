@@ -3,7 +3,7 @@
  * Plugin Name:       PSBDx Smart Report Management
  * Plugin URI:        https://dev.psbdx.xyz/documentations/psbdx-smart-report-managment/
  * Description:       AJAX-powered smart report management system for e-commerce orders, products, and online courses. HPOS compatible. Includes rate limiting, order auto-linking, and an admin dashboard widget.
- * Version:           1.4.4
+ * Version:           1.4.5
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            PSBDx
@@ -22,11 +22,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'PSBDX_SRM_VERSION',     '1.4.4' );
+define( 'PSBDX_SRM_VERSION',     '1.4.5' );
 define( 'PSBDX_SRM_FILE',        __FILE__ );
 define( 'PSBDX_SRM_DIR',         plugin_dir_path( __FILE__ ) );
 define( 'PSBDX_SRM_URL',         plugin_dir_url( __FILE__ ) );
 define( 'PSBDX_SRM_BASENAME',    plugin_basename( __FILE__ ) );
+
+/**
+ * Cache-busting version string for one specific asset file, based on its
+ * own last-modified time rather than the plugin's displayed version number.
+ *
+ * The plugin version (PSBDX_SRM_VERSION) is set deliberately by the site
+ * owner and doesn't change on every small fix, but every enqueued CSS/JS
+ * file was using it as the `?ver=` cache-buster — so a JS fix could ship
+ * and browsers/host-level caches (aggressive on some free hosts) would go
+ * on serving the previous cached copy indefinitely, since the URL never
+ * changed. Using filemtime() instead means any edit to the file itself
+ * changes its `?ver=`, independent of the plugin version number.
+ *
+ * @since  1.4.5
+ * @param  string $relative_path  Path relative to the plugin root, e.g. 'assets/js/public.js'.
+ * @return string                 Unix timestamp of the file's last edit, or PSBDX_SRM_VERSION as a fallback if the file can't be found.
+ */
+function psbdx_srm_asset_ver( $relative_path ) {
+	$absolute = PSBDX_SRM_DIR . ltrim( $relative_path, '/' );
+	$mtime    = file_exists( $absolute ) ? filemtime( $absolute ) : false;
+	return $mtime ? (string) $mtime : PSBDX_SRM_VERSION;
+}
 
 // ─── Includes ────────────────────────────────────────────────────────────────
 
@@ -39,11 +61,14 @@ require_once PSBDX_SRM_DIR . 'includes/class-psbdx-srm-replies.php';
 require_once PSBDX_SRM_DIR . 'includes/class-psbdx-srm-emails.php';
 require_once PSBDX_SRM_DIR . 'includes/class-psbdx-srm-hosting-guard.php';
 require_once PSBDX_SRM_DIR . 'includes/class-psbdx-srm-api.php';
+require_once PSBDX_SRM_DIR . 'includes/class-psbdx-srm-popup-link.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-ai-log.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-csv.php';
+require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-setup-wizard.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-admin.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-admin-tools.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-meta-boxes.php';
+require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-attachment-manager.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-form-builder.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-dashboard-widget.php';
 require_once PSBDX_SRM_DIR . 'admin/class-psbdx-srm-woo-integration.php';
@@ -72,6 +97,7 @@ function psbdx_srm_activate() {
 	PSBDX_SRM_AI_Log::install_table();
 	PSBDX_SRM_Replies::install_table();
 	PSBDX_SRM_API::install_tables();
+	PSBDX_SRM_Setup_Wizard::on_activation();
 }
 
 /**
@@ -195,13 +221,16 @@ function psbdx_srm_init() {
 	new PSBDX_SRM_AI();
 	new PSBDX_SRM_AI_Log();
 	new PSBDX_SRM_CSV();
+	new PSBDX_SRM_Setup_Wizard();
 	new PSBDX_SRM_Replies();
 	new PSBDX_SRM_Emails();
 	new PSBDX_SRM_Hosting_Guard();
 	new PSBDX_SRM_API();
+	new PSBDX_SRM_Popup_Link();
 	new PSBDX_SRM_Admin();
 	new PSBDX_SRM_Admin_Tools();
 	new PSBDX_SRM_Meta_Boxes();
+	new PSBDX_SRM_Attachment_Manager();
 	new PSBDX_SRM_Form_Builder();
 	new PSBDX_SRM_Dashboard_Widget();
 	new PSBDX_SRM_Woo_Integration();

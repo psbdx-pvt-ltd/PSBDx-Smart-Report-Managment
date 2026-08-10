@@ -196,6 +196,12 @@
 		document.querySelectorAll( '.psbdx-modal.psbdx-is-open' ).forEach( closeModal );
 	}
 
+	// Exposed for the URL-popup feature (a separate top-level IIFE further
+	// down this file, out of reach of this one's local openModal()) so it
+	// can open a modal it injects at runtime the exact same way a normal
+	// button click does.
+	window.psbdxSrmOpenModal = openModal;
+
 	// ── Modal open/close ───────────────────────────────────────────────────
 
 	/**
@@ -596,12 +602,16 @@
 		var reportId  = form.getAttribute( 'data-report-id' );
 		var email     = form.getAttribute( 'data-email' ) || '';
 		var textarea  = form.querySelector( '.psbdx-thread-reply-input' );
+		var fileInput = form.querySelector( '.psbdx-thread-reply-file' );
+		var fileNameEl = form.querySelector( '.psbdx-thread-reply-file-name' );
 		var sendBtn   = form.querySelector( '.psbdx-thread-reply-send' );
 		var statusEl  = form.querySelector( '.psbdx-thread-reply-status' );
 		var threadEl  = document.getElementById( 'psbdx-thread-' + reportId );
 
 		var message = textarea ? textarea.value.trim() : '';
-		if ( '' === message ) {
+		var file    = ( fileInput && fileInput.files && fileInput.files[ 0 ] ) ? fileInput.files[ 0 ] : null;
+
+		if ( '' === message && ! file ) {
 			return;
 		}
 
@@ -611,12 +621,15 @@
 			statusEl.textContent = i18n.replySending || 'Submitting with PSBDx\u2026';
 		}
 
-		var body = new URLSearchParams();
+		var body = new FormData();
 		body.append( 'action', cfg.replyAction || 'psbdx_srm_submit_reply' );
 		body.append( 'security', cfg.replyNonce || '' );
 		body.append( 'report_id', reportId || '' );
 		body.append( 'message', message );
 		body.append( 'email', email );
+		if ( file ) {
+			body.append( 'reply_attachment', file );
+		}
 
 		withMinDelay(
 			fetch( cfg.ajaxUrl, { method: 'POST', body: body, credentials: 'same-origin' } ).then( function ( r ) { return r.json(); } ),
@@ -630,6 +643,8 @@
 						threadEl.outerHTML = data.data.thread_html;
 					}
 					if ( textarea ) { textarea.value = ''; }
+					if ( fileInput ) { fileInput.value = ''; }
+					if ( fileNameEl ) { fileNameEl.textContent = ''; }
 					if ( statusEl ) { statusEl.textContent = ''; }
 				} else {
 					if ( statusEl ) {
@@ -648,6 +663,21 @@
 				}
 			} );
 	}, true );
+
+	/**
+	 * Show the selected filename next to the reply form's attach button.
+	 */
+	document.addEventListener( 'change', function ( e ) {
+		if ( ! e.target.classList || ! e.target.classList.contains( 'psbdx-thread-reply-file' ) ) {
+			return;
+		}
+		var form = e.target.closest( '.psbdx-thread-reply-form' );
+		if ( ! form ) { return; }
+		var nameEl = form.querySelector( '.psbdx-thread-reply-file-name' );
+		if ( ! nameEl ) { return; }
+		var file = e.target.files && e.target.files[ 0 ];
+		nameEl.textContent = file ? file.name : '';
+	} );
 
 	/**
 	 * Poll the report detail page's thread for new messages while the page
@@ -697,6 +727,86 @@
 		}
 
 		setInterval( poll, 7000 );
+	}() );
+
+	// ── URL popup overlay ─────────────────────────────────────────────────
+	// Turns any URL on the site into a trigger for a form's report modal:
+	// appending "?" followed by a form's ID to the very end of a URL
+	// (e.g. https://example.com/any-page/?123) opens that form as an
+	// overlay on top of whatever page is already loaded — the page itself
+	// never navigates or reloads, this just fetches the modal markup and
+	// shows it. See PSBDX_SRM_Popup_Link for the per-form opt-in and
+	// PSBDX_SRM_Ajax::handle_get_popup_form() for the endpoint.
+	//
+	// The match is deliberately lenient about *where* the bare number sits:
+	// some free hosts (InfinityFree-family ones like *.rf.gd in particular)
+	// inject their own tracking query params into every page, which would
+	// break a strict "?123 and nothing else" match. Instead this looks for
+	// any standalone "key" with no "=" in the query string that's purely
+	// digits, wherever it falls among other params.
+	( function () {
+		var query  = window.location.search.replace( /^\?/, '' );
+		var formId = null;
+
+		if ( query ) {
+			query.split( '&' ).forEach( function ( part ) {
+				if ( /^\d+$/.test( part ) ) {
+					formId = part;
+				}
+			} );
+		}
+
+		if ( ! formId ) {
+			return;
+		}
+
+		var cfg = window.psbdxSrm || {};
+		if ( ! cfg.ajaxUrl || ! cfg.popupAction ) {
+			return;
+		}
+
+		var url = cfg.ajaxUrl + '?action=' + encodeURIComponent( cfg.popupAction ) + '&form_id=' + encodeURIComponent( formId );
+
+		fetch( url, { credentials: 'same-origin' } )
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( data ) {
+				if ( ! data || ! data.success || ! data.data || ! data.data.html ) {
+					if ( window.console && window.console.warn ) {
+						window.console.warn(
+							'PSBDx popup link: form ' + formId + ' did not open — ' +
+							( ( data && data.data ) || 'either the form doesn\'t exist/isn\'t published, or "Enable popup link" isn\'t checked for it under the form\'s Settings tab.' )
+						);
+					}
+					return;
+				}
+
+				var holder = document.createElement( 'div' );
+				holder.innerHTML = data.data.html;
+
+				var modal = holder.querySelector( '.psbdx-modal' );
+				if ( ! modal ) {
+					return;
+				}
+
+				document.body.appendChild( modal );
+
+				if ( typeof window.psbdxSrmOpenModal === 'function' ) {
+					window.psbdxSrmOpenModal( modal );
+				}
+
+				// Tidy the address bar now that the overlay is showing —
+				// this does not navigate or reload the page, it only
+				// removes the "?123" suffix so refreshing/sharing the
+				// URL afterward doesn't keep re-triggering the popup.
+				if ( window.history && window.history.replaceState ) {
+					window.history.replaceState( null, '', window.location.pathname + window.location.hash );
+				}
+			} )
+			.catch( function ( err ) {
+				if ( window.console && window.console.warn ) {
+					window.console.warn( 'PSBDx popup link: request failed', err );
+				}
+			} );
 	}() );
 
 }() );

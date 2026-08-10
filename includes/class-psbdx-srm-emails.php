@@ -44,6 +44,19 @@ class PSBDX_SRM_Emails {
 	const SENDER_OPTION = 'psbdx_srm_email_sender';
 
 	/**
+	 * Option key: whether a reply's shared file should be physically
+	 * attached to the notification email. 'yes'/'no' — 'no' by default,
+	 * since sending real attachments over email affects deliverability
+	 * (spam scoring, size limits) more than an admin may realize. When
+	 * off, the {reply_attachment} placeholder resolves to a plain
+	 * "Attachment" indicator instead of a real link or file.
+	 *
+	 * @since 1.4.5
+	 * @var string
+	 */
+	const ATTACH_FILES_OPTION = 'psbdx_srm_email_attach_files';
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.4.2
@@ -52,6 +65,17 @@ class PSBDX_SRM_Emails {
 		add_action( 'psbdx_srm_report_submitted', array( __CLASS__, 'notify_new_report' ), 30 );
 		add_action( 'psbdx_srm_reply_added',       array( __CLASS__, 'notify_reply' ), 10, 3 );
 		add_action( 'psbdx_srm_ai_error',          array( __CLASS__, 'notify_ai_error' ), 10, 2 );
+	}
+
+	/**
+	 * Whether reply attachments should be physically attached to
+	 * notification emails (site-wide setting, Settings → Email).
+	 *
+	 * @since  1.4.5
+	 * @return bool
+	 */
+	public static function attach_files_enabled() {
+		return ( 'yes' === get_option( self::ATTACH_FILES_OPTION, 'no' ) );
 	}
 
 	// =========================================================================
@@ -174,16 +198,16 @@ class PSBDX_SRM_Emails {
 				'description'     => __( 'Sent to the site admin email when the reporter posts a follow-up reply.', 'psbdx-smart-report-management' ),
 				'default_enabled' => true,
 				'default_subject' => __( 'New reply on {ticket_id}', 'psbdx-smart-report-management' ),
-				'default_body'    => "<p>" . __( '{reply_author_name} replied on ticket {ticket_id}:', 'psbdx-smart-report-management' ) . "</p>\n<blockquote>{reply_message}</blockquote>\n<p><a href=\"{admin_report_url}\">" . __( 'View & reply', 'psbdx-smart-report-management' ) . "</a></p>",
-				'placeholders'    => array_merge( $common_placeholders, array( '{reply_author_name}', '{reply_message}' ) ),
+				'default_body'    => "<p>" . __( '{reply_author_name} replied on ticket {ticket_id}:', 'psbdx-smart-report-management' ) . "</p>\n<blockquote>{reply_message}</blockquote>\n{reply_attachment}\n<p><a href=\"{admin_report_url}\">" . __( 'View & reply', 'psbdx-smart-report-management' ) . "</a></p>",
+				'placeholders'    => array_merge( $common_placeholders, array( '{reply_author_name}', '{reply_message}', '{reply_attachment}' ) ),
 			),
 			'reply_to_user'       => array(
 				'label'           => __( 'New Reply (to Reporter)', 'psbdx-smart-report-management' ),
 				'description'     => __( 'Sent to the reporter\'s email when an admin — or AI, if enabled — replies to their report.', 'psbdx-smart-report-management' ),
 				'default_enabled' => true,
 				'default_subject' => __( 'You have a new reply — {ticket_id}', 'psbdx-smart-report-management' ),
-				'default_body'    => "<p>" . __( 'Hi {reporter_name},', 'psbdx-smart-report-management' ) . "</p>\n<p>" . __( 'There\'s a new reply on your report ({ticket_id}):', 'psbdx-smart-report-management' ) . "</p>\n<blockquote>{reply_message}</blockquote>\n<p><a href=\"{report_view_url}\">" . __( 'View & reply', 'psbdx-smart-report-management' ) . "</a></p>\n<p>&mdash; {site_name}</p>",
-				'placeholders'    => array_merge( $common_placeholders, array( '{reply_author_name}', '{reply_message}' ) ),
+				'default_body'    => "<p>" . __( 'Hi {reporter_name},', 'psbdx-smart-report-management' ) . "</p>\n<p>" . __( 'There\'s a new reply on your report ({ticket_id}):', 'psbdx-smart-report-management' ) . "</p>\n<blockquote>{reply_message}</blockquote>\n{reply_attachment}\n<p><a href=\"{report_view_url}\">" . __( 'View & reply', 'psbdx-smart-report-management' ) . "</a></p>\n<p>&mdash; {site_name}</p>",
+				'placeholders'    => array_merge( $common_placeholders, array( '{reply_author_name}', '{reply_message}', '{reply_attachment}' ) ),
 			),
 		);
 
@@ -290,9 +314,10 @@ class PSBDX_SRM_Emails {
 	 * @param  string $event_key     One of get_events()'s keys.
 	 * @param  string $to            Destination email address.
 	 * @param  array  $placeholders  Map of '{token}' => value for this send.
+	 * @param  array  $attachments   Optional absolute file paths to physically attach.
 	 * @return bool  Whether wp_mail() reported success.
 	 */
-	public static function send( $event_key, $to, array $placeholders ) {
+	public static function send( $event_key, $to, array $placeholders, array $attachments = array() ) {
 		if ( ! self::is_valid_event( $event_key ) || ! self::is_enabled( $event_key ) ) {
 			return false;
 		}
@@ -318,7 +343,7 @@ class PSBDX_SRM_Emails {
 			add_filter( 'wp_mail_from', array( __CLASS__, 'filter_from_email' ) );
 		}
 
-		$sent = wp_mail( $to, $subject, $body, $headers );
+		$sent = wp_mail( $to, $subject, $body, $headers, $attachments );
 
 		remove_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ) );
 		remove_filter( 'wp_mail_from', array( __CLASS__, 'filter_from_email' ) );
@@ -418,13 +443,33 @@ class PSBDX_SRM_Emails {
 		$placeholders['{reply_message}']      = wp_kses_post( wpautop( $reply->message ) );
 		$placeholders['{reply_author_name}']  = $reply->author_name;
 
+		$attachment_id = (int) ( $reply->attachment_id ?? 0 );
+		$file_paths    = array();
+
+		if ( $attachment_id && 'attachment' === get_post_type( $attachment_id ) ) {
+			$filename = basename( get_attached_file( $attachment_id ) );
+
+			if ( self::attach_files_enabled() ) {
+				$file_path = get_attached_file( $attachment_id );
+				if ( $file_path && file_exists( $file_path ) ) {
+					$file_paths[] = $file_path;
+				}
+				$placeholders['{reply_attachment}'] = '<p><strong>' . esc_html__( 'Attachment:', 'psbdx-smart-report-management' ) . '</strong> '
+					. esc_html( $filename ) . ' — ' . esc_html__( 'see the attached file.', 'psbdx-smart-report-management' ) . '</p>';
+			} else {
+				$placeholders['{reply_attachment}'] = '<p><strong>' . esc_html__( 'Attachment', 'psbdx-smart-report-management' ) . '</strong></p>';
+			}
+		} else {
+			$placeholders['{reply_attachment}'] = '';
+		}
+
 		if ( 'user' === $author_type ) {
-			self::send( 'reply_to_admin', get_option( 'admin_email' ), $placeholders );
+			self::send( 'reply_to_admin', get_option( 'admin_email' ), $placeholders, $file_paths );
 		} else {
 			$reporter_email = get_post_meta( $report_id, '_psbdx_reporter_email', true );
 
 			if ( $reporter_email ) {
-				self::send( 'reply_to_user', $reporter_email, $placeholders );
+				self::send( 'reply_to_user', $reporter_email, $placeholders, $file_paths );
 			}
 		}
 	}

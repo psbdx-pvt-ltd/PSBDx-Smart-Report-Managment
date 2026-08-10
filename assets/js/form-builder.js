@@ -311,6 +311,16 @@
 			f.other_option = false;
 		}
 
+		if ( type === 'attachment' ) {
+			f.allowed_types = [ 'jpg', 'jpeg', 'png', 'pdf' ];
+			f.min_size_kb   = 0;
+			f.max_size_kb   = 5120;
+		}
+
+		if ( type === 'review' ) {
+			f.max_stars = 5;
+		}
+
 		fields.push( f );
 		persistFields();
 		renderFieldCard( f );
@@ -533,6 +543,70 @@
 			) );
 		}
 
+		// Attachment extras: allowed extensions + min/max size.
+		if ( f.type === 'attachment' ) {
+			$body.append( makeTextInput(
+				'psrm_fs_allowed_types',
+				'Allowed file extensions (comma-separated, e.g. jpg,png,pdf)',
+				( f.allowed_types || [] ).join( ', ' ),
+				function ( val ) {
+					f.allowed_types = val.split( ',' )
+						.map( function ( s ) { return s.trim().toLowerCase().replace( /^\.+/, '' ).replace( /[^a-z0-9]/g, '' ); } )
+						.filter( Boolean );
+					persistFields();
+				}
+			) );
+
+			$body.append( makeNumberInput(
+				'psrm_fs_min_size',
+				'Minimum file size in KB (0 = no minimum)',
+				f.min_size_kb || 0,
+				0,
+				51200,
+				function ( val ) {
+					f.min_size_kb = Math.max( 0, val );
+					persistFields();
+				}
+			) );
+
+			$body.append( makeNumberInput(
+				'psrm_fs_max_size',
+				'Maximum file size in KB (e.g. 5120 = 5 MB)',
+				f.max_size_kb || 5120,
+				1,
+				51200,
+				function ( val ) {
+					f.max_size_kb = Math.min( 51200, Math.max( 1, val || 5120 ) );
+					persistFields();
+				}
+			) );
+
+			$body.append( makeCheckbox(
+				'psrm_fs_delete_on_solved',
+				'Automatically delete this attachment when the report is marked Solved',
+				!! f.delete_on_solved,
+				function ( checked ) {
+					f.delete_on_solved = checked;
+					persistFields();
+				}
+			) );
+		}
+
+		// Review extras: how many stars to show.
+		if ( f.type === 'review' ) {
+			$body.append( makeNumberInput(
+				'psrm_fs_max_stars',
+				'Number of stars to show (2–10)',
+				f.max_stars || 5,
+				2,
+				10,
+				function ( val ) {
+					f.max_stars = Math.min( 10, Math.max( 2, val || 5 ) );
+					persistFields();
+				}
+			) );
+		}
+
 		$settingsBody.empty().append( $body );
 	}
 
@@ -566,6 +640,22 @@
 		} );
 
 		return $wrap.append( $input, $label.append( $input, document.createTextNode( ' ' + label ) ) );
+	}
+
+	/**
+	 * Build a labelled number input row.
+	 */
+	function makeNumberInput( inputId, label, value, min, max, onChange ) {
+		var $wrap  = $( '<div>' ).addClass( 'psrm-sf-row' );
+		var $label = $( '<label>' ).attr( 'for', inputId ).text( label );
+		var $input = $( '<input>' ).attr( { type: 'number', id: inputId, min: min, max: max } ).val( value );
+
+		$input.on( 'input change', function () {
+			var val = parseInt( $( this ).val(), 10 );
+			onChange( isNaN( val ) ? min : val );
+		} );
+
+		return $wrap.append( $label, $input );
 	}
 
 	/**

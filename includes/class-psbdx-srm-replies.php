@@ -39,7 +39,7 @@ class PSBDX_SRM_Replies {
 	 * @since 1.4.2
 	 * @var string
 	 */
-	const DB_VERSION = '1.0';
+	const DB_VERSION = '1.1';
 
 	/**
 	 * Post meta key (on psbdx_report_log) recording which form the report
@@ -129,6 +129,7 @@ class PSBDX_SRM_Replies {
 			author_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			author_name VARCHAR(190) NOT NULL DEFAULT '',
 			message LONGTEXT NULL,
+			attachment_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			ai_improved TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			PRIMARY KEY  (id),
@@ -319,15 +320,19 @@ class PSBDX_SRM_Replies {
 	 * @param  string $author_name  Display name to show in the thread.
 	 * @param  string $message      Message body (will be run through wp_kses_post on output).
 	 * @param  bool   $ai_improved  Whether an admin message was polished by AI before sending.
+	 * @param  int    $attachment_id  Optional attachment post ID shared alongside this message (0 = none).
 	 * @return int|false  New row ID, or false on failure.
 	 */
-	public static function add_reply( $report_id, $author_type, $author_id, $author_name, $message, $ai_improved = false ) {
+	public static function add_reply( $report_id, $author_type, $author_id, $author_name, $message, $ai_improved = false, $attachment_id = 0 ) {
 		global $wpdb;
 
-		$author_type = in_array( $author_type, array( 'admin', 'user', 'ai' ), true ) ? $author_type : 'admin';
-		$message     = trim( (string) $message );
+		$author_type   = in_array( $author_type, array( 'admin', 'user', 'ai' ), true ) ? $author_type : 'admin';
+		$message       = trim( (string) $message );
+		$attachment_id = absint( $attachment_id );
 
-		if ( '' === $message || ! $report_id ) {
+		// A reply needs a message OR an attachment — not necessarily both,
+		// since sharing just a photo with no comment is a normal thing to do.
+		if ( ( '' === $message && ! $attachment_id ) || ! $report_id ) {
 			return false;
 		}
 
@@ -335,15 +340,16 @@ class PSBDX_SRM_Replies {
 		$inserted = $wpdb->insert(
 			self::table_name(),
 			array(
-				'report_id'   => (int) $report_id,
-				'author_type' => $author_type,
-				'author_id'   => (int) $author_id,
-				'author_name' => mb_substr( sanitize_text_field( $author_name ), 0, 190 ),
-				'message'     => wp_kses_post( $message ),
-				'ai_improved' => $ai_improved ? 1 : 0,
-				'created_at'  => current_time( 'mysql', true ),
+				'report_id'      => (int) $report_id,
+				'author_type'    => $author_type,
+				'author_id'      => (int) $author_id,
+				'author_name'    => mb_substr( sanitize_text_field( $author_name ), 0, 190 ),
+				'message'        => wp_kses_post( $message ),
+				'attachment_id'  => $attachment_id,
+				'ai_improved'    => $ai_improved ? 1 : 0,
+				'created_at'     => current_time( 'mysql', true ),
 			),
-			array( '%d', '%s', '%d', '%s', '%s', '%d', '%s' )
+			array( '%d', '%s', '%d', '%s', '%s', '%d', '%d', '%s' )
 		);
 
 		if ( ! $inserted ) {
@@ -377,9 +383,9 @@ class PSBDX_SRM_Replies {
 
 		$table = self::table_name();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table name is safe (built from a constant, not user input); reply threads are small and read live.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table; reply threads are small and read live.
 		return (array) $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE report_id = %d ORDER BY created_at ASC, id ASC", $report_id )
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE report_id = %d ORDER BY created_at ASC, id ASC", $report_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is safe (built from a constant via table_name(), not user input); $wpdb->prepare() can't parameterize identifiers.
 		);
 	}
 

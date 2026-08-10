@@ -73,6 +73,17 @@ class PSBDX_SRM_Ajax {
 	const POLL_NONCE_ACTION = 'psbdx_srm_poll_thread_nonce';
 
 	/**
+	 * AJAX action name for fetching a form's popup modal markup, used by
+	 * the URL-popup feature (see PSBDX_SRM_Popup_Link) when a visitor's
+	 * URL matches the "?<form_id>" trigger pattern on a page that doesn't
+	 * otherwise have the [psbdx_report] shortcode on it.
+	 *
+	 * @since 1.4.5
+	 * @var string
+	 */
+	const POPUP_ACTION = 'psbdx_srm_get_popup_form';
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.0.0
@@ -88,6 +99,12 @@ class PSBDX_SRM_Ajax {
 		add_action( 'wp_ajax_nopriv_' . self::REPLY_ACTION, array( $this, 'handle_reply' ) );
 		add_action( 'wp_ajax_' . self::POLL_ACTION,        array( $this, 'handle_poll_thread' ) );
 		add_action( 'wp_ajax_nopriv_' . self::POLL_ACTION, array( $this, 'handle_poll_thread' ) );
+
+		// Popup-link markup is public by design (that's the whole point —
+		// any visitor landing on a "?<id>" URL should see it), gated only
+		// by the per-form "Enable popup link" checkbox and a light IP throttle.
+		add_action( 'wp_ajax_' . self::POPUP_ACTION,        array( $this, 'handle_get_popup_form' ) );
+		add_action( 'wp_ajax_nopriv_' . self::POPUP_ACTION, array( $this, 'handle_get_popup_form' ) );
 
 		add_action( self::DEFERRED_HOOK, array( $this, 'process_deferred' ), 10, 2 );
 	}
@@ -154,7 +171,7 @@ class PSBDX_SRM_Ajax {
 		// "Maximum execution time exceeded" error. @-suppressed because
 		// set_time_limit() is disabled outright on some hosts, which is
 		// fine — it's a best-effort safety net, not a requirement.
-		@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_set_time_limit
+		@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged
 
 		return $finished;
 	}
@@ -202,6 +219,43 @@ class PSBDX_SRM_Ajax {
 		} elseif ( 'reply' === $type ) {
 			PSBDX_SRM_AI::generate_reply( $id );
 		}
+	}
+
+	/**
+	 * Returns the popup modal markup for a form, for the URL-popup feature.
+	 * Guest-accessible on purpose (see class docblock), gated by:
+	 * - the form must exist, be published, and have "Enable popup link"
+	 *   checked (PSBDX_SRM_Popup_Link::is_enabled()) — off by default;
+	 * - a light per-IP throttle (30 requests / 10 minutes) so the endpoint
+	 *   can't be used to enumerate form IDs at scale.
+	 *
+	 * @since  1.4.5
+	 * @return void  Terminates with wp_send_json_success() or wp_send_json_error().
+	 */
+	public function handle_get_popup_form() {
+		$ip  = PSBDX_SRM_Helpers::get_client_ip();
+		$key = 'psbdx_popup_rl_' . md5( $ip );
+		$hit = (int) get_transient( $key );
+
+		if ( $hit >= 30 ) {
+			wp_send_json_error( __( 'Too many requests. Please try again shortly.', 'psbdx-smart-report-management' ) );
+		}
+
+		set_transient( $key, $hit + 1, 10 * MINUTE_IN_SECONDS );
+
+		$form_id = absint( $_GET['form_id'] ?? ( $_POST['form_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- public read-only lookup, no state changed; gated by per-form opt-in + IP throttle above.
+
+		if ( ! $form_id
+			|| 'psbdx_report_form' !== get_post_type( $form_id )
+			|| 'publish' !== get_post_status( $form_id )
+			|| ! PSBDX_SRM_Popup_Link::is_enabled( $form_id )
+		) {
+			wp_send_json_error( __( 'This form is not available as a popup.', 'psbdx-smart-report-management' ) );
+		}
+
+		wp_send_json_success( array(
+			'html' => PSBDX_SRM_Shortcodes::render_form_instance( $form_id, 'popup_only' ),
+		) );
 	}
 
 	/**
@@ -267,8 +321,25 @@ class PSBDX_SRM_Ajax {
 			wp_send_json_error( __( 'Replies are not enabled for this report.', 'psbdx-smart-report-management' ) );
 		}
 
-		if ( '' === trim( $message ) ) {
-			wp_send_json_error( __( 'Please write a message before sending.', 'psbdx-smart-report-management' ) );
+		// A reply attachment is optional and shared alongside the message —
+		// see PSBDX_SRM_Ajax::validate_and_upload_file() for the shared
+		// validation/upload logic (also used by v2 Attachment fields and
+		// the admin-side reply box).
+		$attachment_id = 0;
+		$file          = $this->extract_flat_uploaded_file( 'reply_attachment' );
+
+		if ( $file && UPLOAD_ERR_NO_FILE !== $file['error'] ) {
+			$attachment_id = self::validate_and_upload_file(
+				$file,
+				__( 'Attachment', 'psbdx-smart-report-management' ),
+				self::REPLY_ATTACHMENT_TYPES,
+				0,
+				self::REPLY_ATTACHMENT_MAX_KB
+			);
+		}
+
+		if ( '' === trim( $message ) && ! $attachment_id ) {
+			wp_send_json_error( __( 'Please write a message or attach a file before sending.', 'psbdx-smart-report-management' ) );
 		}
 
 		if ( current_user_can( 'edit_posts' ) ) {
@@ -287,10 +358,14 @@ class PSBDX_SRM_Ajax {
 			$author_name = get_post_meta( $report_id, '_psbdx_reporter_email', true ) ?: __( 'Customer', 'psbdx-smart-report-management' );
 		}
 
-		$reply_id = PSBDX_SRM_Replies::add_reply( $report_id, $author_type, $author_id, $author_name, $message );
+		$reply_id = PSBDX_SRM_Replies::add_reply( $report_id, $author_type, $author_id, $author_name, $message, false, $attachment_id );
 
 		if ( ! $reply_id ) {
 			wp_send_json_error( __( 'Failed to save your reply. Please try again.', 'psbdx-smart-report-management' ) );
+		}
+
+		if ( $attachment_id ) {
+			wp_update_post( array( 'ID' => $attachment_id, 'post_parent' => $report_id ) );
 		}
 
 		$thread_html = PSBDX_SRM_Shortcodes::render_thread_html( $report_id, true );
@@ -321,6 +396,169 @@ class PSBDX_SRM_Ajax {
 		}
 
 		exit;
+	}
+
+	/**
+	 * Pulls one file's info out of the nested $_FILES['psrm_v2'][...][handle]
+	 * structure PHP produces for a file input named `psrm_v2[<handle>]`,
+	 * into the flat shape wp_handle_upload() expects.
+	 *
+	 * @since  1.4.5
+	 * @param  string $handle  Field handle.
+	 * @return array{name:string,type:string,tmp_name:string,error:int,size:int}|null
+	 */
+	private function extract_v2_uploaded_file( $handle ) {
+		if ( ! isset( $_FILES['psrm_v2']['name'][ $handle ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce already verified by the caller (handle()) before this method is ever reached; this only reads upload metadata.
+			return null;
+		}
+
+		return array(
+			'name'     => sanitize_file_name( wp_unslash( $_FILES['psrm_v2']['name'][ $handle ] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see above.
+			'type'     => sanitize_text_field( wp_unslash( $_FILES['psrm_v2']['type'][ $handle ] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; index existence is checked by the isset() this method starts with.
+			// Server-generated tmp path — deliberately not run through
+			// wp_unslash()/sanitizers, which could mangle it.
+			'tmp_name' => $_FILES['psrm_v2']['tmp_name'][ $handle ], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- see above; a server-generated path, not user input.
+			'error'    => (int) $_FILES['psrm_v2']['error'][ $handle ], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+			'size'     => (int) $_FILES['psrm_v2']['size'][ $handle ], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+		);
+	}
+
+	/**
+	 * Default allowed extensions and max size (KB) for a reply attachment
+	 * — replies aren't tied to a specific form field, so unlike an
+	 * Attachment-type field there's no per-field admin setting to pull
+	 * these from.
+	 *
+	 * @since 1.4.5
+	 * @var array|int
+	 */
+	const REPLY_ATTACHMENT_TYPES  = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf' );
+	const REPLY_ATTACHMENT_MAX_KB = 10240; // 10 MB.
+
+	/**
+	 * Pulls one file's info out of a plain (non-nested) $_FILES[$key] entry
+	 * — used for the reply-attachment file input, which isn't nested under
+	 * an array of field handles the way psrm_v2[...] fields are.
+	 *
+	 * @since  1.4.5
+	 * @param  string $key  $_FILES key.
+	 * @return array{name:string,type:string,tmp_name:string,error:int,size:int}|null
+	 */
+	private function extract_flat_uploaded_file( $key ) {
+		if ( ! isset( $_FILES[ $key ]['name'] ) || '' === $_FILES[ $key ]['name'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce already verified by the caller (handle_reply()) before this method is ever reached; this only reads upload metadata.
+			return null;
+		}
+
+		return array(
+			'name'     => sanitize_file_name( wp_unslash( $_FILES[ $key ]['name'] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see above.
+			'type'     => sanitize_text_field( wp_unslash( $_FILES[ $key ]['type'] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; index existence is checked by the isset() this method starts with.
+			'tmp_name' => $_FILES[ $key ]['tmp_name'], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- server-generated path, not user input; see above.
+			'error'    => (int) $_FILES[ $key ]['error'], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+			'size'     => (int) $_FILES[ $key ]['size'], // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- see above; cast to int.
+		);
+	}
+
+	/**
+	 * Validates one uploaded file (extension, size) and, if it passes,
+	 * actually moves it into the uploads dir and creates its attachment
+	 * post. Shared by the v2 Attachment field type and reply attachments
+	 * (both here and in PSBDX_SRM_Meta_Boxes::ajax_add_admin_reply()) so
+	 * the rules only live in one place.
+	 *
+	 * Terminates the request via wp_send_json_error() on failure, same as
+	 * every other per-field validation in the submission handler — callers
+	 * don't need their own error handling, just check the return value is
+	 * a valid ID before using it.
+	 *
+	 * @since  1.4.5
+	 * @param  array  $file           A file array in wp_handle_upload()'s expected shape.
+	 * @param  string $label          Human-readable label for error messages.
+	 * @param  array  $allowed_types  Lowercase extensions without the dot.
+	 * @param  int    $min_kb         Minimum size in KB (0 = no minimum).
+	 * @param  int    $max_kb         Maximum size in KB (0 = no maximum).
+	 * @return int  New attachment post ID (post_parent is left at 0 — set it once you have a parent post to attach to).
+	 */
+	public static function validate_and_upload_file( array $file, $label, array $allowed_types, $min_kb = 0, $max_kb = 0 ) {
+		if ( UPLOAD_ERR_OK !== $file['error'] ) {
+			wp_send_json_error(
+				/* translators: %s: field/context label */
+				sprintf( __( 'The "%s" file failed to upload. Please try again.', 'psbdx-smart-report-management' ), $label )
+			);
+		}
+
+		$ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
+
+		if ( ! empty( $allowed_types ) && ! in_array( $ext, $allowed_types, true ) ) {
+			wp_send_json_error(
+				sprintf(
+					/* translators: 1: field/context label, 2: comma-separated allowed extensions */
+					__( '"%1$s" only accepts these file types: %2$s.', 'psbdx-smart-report-management' ),
+					$label,
+					strtoupper( implode( ', ', $allowed_types ) )
+				)
+			);
+		}
+
+		if ( $min_kb > 0 && $file['size'] < $min_kb * 1024 ) {
+			wp_send_json_error(
+				sprintf(
+					/* translators: 1: field/context label, 2: minimum size, human readable */
+					__( 'The "%1$s" file is too small — it must be at least %2$s.', 'psbdx-smart-report-management' ),
+					$label,
+					size_format( $min_kb * 1024 )
+				)
+			);
+		}
+		if ( $max_kb > 0 && $file['size'] > $max_kb * 1024 ) {
+			wp_send_json_error(
+				sprintf(
+					/* translators: 1: field/context label, 2: maximum size, human readable */
+					__( 'The "%1$s" file is too large — it must be no more than %2$s.', 'psbdx-smart-report-management' ),
+					$label,
+					size_format( $max_kb * 1024 )
+				)
+			);
+		}
+
+		if ( ! function_exists( 'wp_handle_upload' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+		}
+
+		$moved = wp_handle_upload( $file, array( 'test_form' => false ) );
+
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_send_json_error(
+				sprintf(
+					/* translators: 1: field/context label, 2: upload error message */
+					__( 'The "%1$s" file could not be saved: %2$s', 'psbdx-smart-report-management' ),
+					$label,
+					isset( $moved['error'] ) ? $moved['error'] : __( 'unknown error', 'psbdx-smart-report-management' )
+				)
+			);
+		}
+
+		$attach_id = wp_insert_attachment(
+			array(
+				'post_mime_type' => $moved['type'],
+				'post_title'     => sanitize_file_name( pathinfo( $moved['file'], PATHINFO_FILENAME ) ),
+				'post_content'   => '',
+				'post_status'    => 'inherit',
+			),
+			$moved['file']
+		);
+
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_send_json_error(
+				/* translators: %s: field/context label */
+				sprintf( __( 'The "%s" file could not be saved. Please try again.', 'psbdx-smart-report-management' ), $label )
+			);
+		}
+
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( $attach_id, $moved['file'] ) );
+
+		return (int) $attach_id;
 	}
 
 	/**
@@ -444,6 +682,11 @@ class PSBDX_SRM_Ajax {
 				? wp_unslash( (array) $_POST['psrm_v2'] ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized field-by-field below.
 				: array();
 
+			// Attachment fields upload/validate inline below (see the
+			// 'attachment' branch) and are linked to $log_id once it
+			// exists, right after step 11 inserts the report post.
+			$pending_attachments = array();
+
 			foreach ( $schema as $field_def ) {
 				$handle   = sanitize_key( $field_def['handle'] ?? '' );
 				$label    = sanitize_text_field( $field_def['label'] ?? '' );
@@ -485,6 +728,54 @@ class PSBDX_SRM_Ajax {
 								__( 'The "%s" field is required.', 'psbdx-smart-report-management' ),
 								$label
 							)
+						);
+					}
+				} elseif ( 'attachment' === $type ) {
+					$file = $this->extract_v2_uploaded_file( $handle );
+
+					if ( ! $file || UPLOAD_ERR_NO_FILE === $file['error'] ) {
+						if ( $required ) {
+							wp_send_json_error(
+								/* translators: %s: form field label */
+								sprintf( __( 'The "%s" field is required.', 'psbdx-smart-report-management' ), $label )
+							);
+						}
+					} else {
+						$allowed_types = is_array( $field_def['allowed_types'] ?? null ) && ! empty( $field_def['allowed_types'] )
+							? $field_def['allowed_types']
+							: PSBDX_SRM_Form_Builder::ATTACHMENT_DEFAULT_TYPES;
+						$min_kb = (int) ( $field_def['min_size_kb'] ?? 0 );
+						$max_kb = (int) ( $field_def['max_size_kb'] ?? 5120 );
+
+						// Terminates via wp_send_json_error() on any validation/upload
+						// failure, same as every other field-type check in this loop.
+						$attach_id = self::validate_and_upload_file( $file, $label, $allowed_types, $min_kb, $max_kb );
+
+						if ( $attach_id ) {
+							$pending_attachments[ $handle ] = $attach_id;
+							$v2_parts[] = '<strong>' . esc_html( $label ) . ':</strong> '
+								. '<a href="' . esc_url( wp_get_attachment_url( $attach_id ) ) . '" target="_blank" rel="noopener noreferrer">'
+								. esc_html( basename( get_attached_file( $attach_id ) ) ) . '</a>';
+						}
+					}
+				} elseif ( 'review' === $type ) {
+					$max_stars = (int) ( $field_def['max_stars'] ?? 5 );
+					$max_stars = $max_stars > 0 ? $max_stars : 5;
+					$stars     = min( $max_stars, absint( $raw_v2[ $handle ] ?? 0 ) );
+
+					if ( $required && $stars < 1 ) {
+						wp_send_json_error(
+							/* translators: %s: form field label */
+							sprintf( __( 'The "%s" field is required.', 'psbdx-smart-report-management' ), $label )
+						);
+					}
+
+					if ( $stars > 0 ) {
+						$value = sprintf(
+							/* translators: 1: chosen number of stars, 2: max possible stars */
+							__( '%1$d out of %2$d stars', 'psbdx-smart-report-management' ),
+							$stars,
+							$max_stars
 						);
 					}
 				} else {
@@ -596,6 +887,18 @@ class PSBDX_SRM_Ajax {
 			wp_send_json_error(
 				__( 'Failed to save the report. Please try again.', 'psbdx-smart-report-management' )
 			);
+		}
+
+		// 11b. Now that the report post exists, attach any uploaded files
+		// to it (they were uploaded during field validation above, before
+		// this post existed) and record each under its field handle so an
+		// admin or a future feature (CSV export, etc.) can look one up
+		// directly instead of parsing it back out of post_content.
+		if ( $is_v2 && ! empty( $pending_attachments ) ) {
+			foreach ( $pending_attachments as $handle => $attach_id ) {
+				wp_update_post( array( 'ID' => $attach_id, 'post_parent' => $log_id ) );
+				update_post_meta( $log_id, '_psbdx_attachment_' . $handle, $attach_id );
+			}
 		}
 
 		// Rate limit only after a successful save (avoids locking users out on failures).

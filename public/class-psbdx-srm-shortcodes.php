@@ -101,6 +101,30 @@ class PSBDX_SRM_Shortcodes {
 						<span class="psbdx-thread-msg-time"><?php echo esc_html( $local_time ); ?></span>
 					</div>
 					<div class="psbdx-thread-msg-body"><?php echo wp_kses_post( wpautop( $msg->message ) ); ?></div>
+					<?php
+					$reply_attach_id = (int) ( $msg->attachment_id ?? 0 );
+					if ( $reply_attach_id && get_post( $reply_attach_id ) ) :
+						$attach_url = wp_get_attachment_url( $reply_attach_id );
+						$image_src  = wp_get_attachment_image_src( $reply_attach_id, 'medium' );
+						?>
+						<div class="psbdx-thread-msg-attachment">
+							<?php if ( $image_src ) : ?>
+								<a href="<?php echo esc_url( $attach_url ); ?>" target="_blank" rel="noopener noreferrer">
+									<img src="<?php echo esc_url( $image_src[0] ); ?>" alt="" class="psbdx-thread-msg-attachment-img">
+								</a>
+							<?php else : ?>
+								<a href="<?php echo esc_url( $attach_url ); ?>" target="_blank" rel="noopener noreferrer" class="psbdx-thread-msg-attachment-file">
+									<span class="dashicons dashicons-media-default" aria-hidden="true"></span>
+									<?php echo esc_html( basename( get_attached_file( $reply_attach_id ) ) ); ?>
+								</a>
+							<?php endif; ?>
+						</div>
+					<?php elseif ( $reply_attach_id ) : // Had a file at the time, but it's since been deleted. ?>
+						<div class="psbdx-thread-msg-attachment psbdx-thread-msg-attachment-deleted">
+							<span class="dashicons dashicons-trash" aria-hidden="true"></span>
+							<?php esc_html_e( 'Deleted Attachment', 'psbdx-smart-report-management' ); ?>
+						</div>
+					<?php endif; ?>
 				</div>
 				<?php
 			}
@@ -125,10 +149,35 @@ class PSBDX_SRM_Shortcodes {
 	 * @return string       HTML output.
 	 */
 	public function render_report_button( $atts ) {
-		global $wp;
-
-		$atts    = shortcode_atts( array( 'id' => 0 ), $atts, 'psbdx_report' );
+		$atts    = shortcode_atts( array( 'id' => 0, 'mode' => 'popup' ), $atts, 'psbdx_report' );
 		$form_id = absint( $atts['id'] );
+		$mode    = in_array( $atts['mode'], array( 'popup', 'inline' ), true ) ? $atts['mode'] : 'popup';
+
+		if ( ! $form_id || 'psbdx_report_form' !== get_post_type( $form_id ) ) {
+			return '';
+		}
+
+		return self::render_form_instance( $form_id, $mode );
+	}
+
+	/**
+	 * Renders a single form instance in one of three modes. Shared by:
+	 * - [psbdx_report id="X"] (mode=popup, the default) — a trigger button
+	 *   plus a hidden modal that opens on click.
+	 * - [psbdx_report id="X" mode="inline"] — the form embedded directly
+	 *   into the page flow, always visible, no button/modal chrome.
+	 * - PSBDX_SRM_Ajax::handle_get_popup_form() (mode=popup_only) — just the
+	 *   modal markup with no trigger button, injected into the page by
+	 *   public.js and opened immediately when a URL-triggered popup link
+	 *   is detected (see maybeOpenUrlPopup() in public.js).
+	 *
+	 * @since  1.4.5
+	 * @param  int    $form_id  Report form post ID.
+	 * @param  string $mode     'popup' | 'inline' | 'popup_only'.
+	 * @return string           HTML output, or '' if the form doesn't exist.
+	 */
+	public static function render_form_instance( $form_id, $mode = 'popup' ) {
+		global $wp;
 
 		if ( ! $form_id || 'psbdx_report_form' !== get_post_type( $form_id ) ) {
 			return '';
@@ -194,7 +243,11 @@ class PSBDX_SRM_Shortcodes {
 		$form_version = (int) get_post_meta( $form_id, PSBDX_SRM_Form_Builder::VERSION_META_KEY, true );
 		$is_v2_form   = ( $form_version >= PSBDX_SRM_Form_Builder::SCHEMA_VERSION );
 
+		$is_popup = ( 'inline' !== $mode );
+
 		ob_start();
+
+		if ( 'popup' === $mode ) :
 		?>
 		<div class="psbdx-btn-wrap">
 			<button class="psbdx-trigger-btn"
@@ -208,9 +261,11 @@ class PSBDX_SRM_Shortcodes {
 				<?php echo esc_html( $btn_text ); ?>
 			</button>
 		</div>
+		<?php endif; ?>
 
+		<?php if ( $is_popup ) : ?>
 		<div id="psbdx-modal-<?php echo esc_attr( $uid ); ?>"
-			class="psbdx-modal"
+			class="psbdx-modal<?php echo ( 'popup_only' === $mode ) ? ' psbdx-modal-url-popup' : ''; ?>"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="psbdx-modal-title-<?php echo esc_attr( $uid ); ?>">
@@ -221,6 +276,9 @@ class PSBDX_SRM_Shortcodes {
 					aria-label="<?php esc_attr_e( 'Close report form', 'psbdx-smart-report-management' ); ?>">
 					&times;
 				</button>
+		<?php else : ?>
+		<div class="psbdx-inline-form-wrap" id="psbdx-inline-<?php echo esc_attr( $uid ); ?>">
+		<?php endif; ?>
 
 				<div class="psbdx-modal-header">
 					<div class="psbdx-modal-icon" aria-hidden="true">
@@ -373,8 +431,12 @@ class PSBDX_SRM_Shortcodes {
 
 				<div class="psbdx-form-response" role="alert" aria-live="polite"></div>
 
+		<?php if ( $is_popup ) : ?>
 			</div><!-- .psbdx-modal-panel -->
 		</div><!-- .psbdx-modal -->
+		<?php else : ?>
+		</div><!-- .psbdx-inline-form-wrap -->
+		<?php endif; ?>
 		<?php
 
 		return ob_get_clean();

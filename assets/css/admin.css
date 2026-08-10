@@ -826,9 +826,140 @@
 .psbdx-thread-msg-body p:first-child { margin-top: 0; }
 .psbdx-thread-msg-body p:last-child  { margin-bottom: 0; }
 
+.psbdx-thread-msg-attachment {
+	margin-top: 6px;
+}
+
+.psbdx-thread-msg-attachment-img {
+	max-width:     220px;
+	max-height:    220px;
+	border-radius: 6px;
+	display:       block;
+	border:        1px solid #dcdcde;
+}
+
+.psbdx-thread-msg-attachment-file {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           6px;
+	font-size:     12px;
+	padding:       5px 9px;
+	border:        1px solid #dcdcde;
+	border-radius: 6px;
+	text-decoration: none;
+}
+
+.psbdx-thread-msg-attachment-deleted {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           6px;
+	font-size:     12px;
+	padding:       5px 9px;
+	border:        1px dashed #dcdcde;
+	border-radius: 6px;
+	color:         #787c82;
+	font-style:    italic;
+}
+
 .psbdx-admin-reply-box {
 	border-top: 1px solid #e2e8f0;
 	padding-top: 12px;
+}
+
+.psbdx-admin-reply-attach-row {
+	display:     flex;
+	align-items: center;
+	gap:         10px;
+	margin:      8px 0;
+}
+
+.psbdx-admin-reply-attach-btn {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           5px;
+	font-size:     12px;
+	color:         #646970;
+	cursor:        pointer;
+	padding:       5px 10px;
+	border:        1px dashed #c3c4c7;
+	border-radius: 6px;
+}
+
+.psbdx-admin-reply-attach-btn:hover {
+	color: #2271b1;
+	border-color: #2271b1;
+}
+
+.psbdx-admin-reply-file-name {
+	font-size: 12px;
+	color:     #646970;
+	overflow-wrap: anywhere;
+}
+
+/* ── Attachments meta box ─────────────────────────────────────────────────── */
+.psbdx-attachments-list {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.psbdx-attachment-row {
+	display:     flex;
+	align-items: center;
+	gap:         8px;
+	padding:     6px;
+	border:      1px solid #e2e8f0;
+	border-radius: 6px;
+}
+
+.psbdx-attachment-thumb {
+	flex:          0 0 auto;
+	width:         36px;
+	height:        36px;
+	border-radius: 4px;
+	overflow:      hidden;
+	background:    #f0f0f1;
+	display:       flex;
+	align-items:   center;
+	justify-content: center;
+}
+
+.psbdx-attachment-thumb img {
+	width:      100%;
+	height:     100%;
+	object-fit: cover;
+	display:    block;
+}
+
+.psbdx-attachment-meta {
+	flex:      1 1 auto;
+	min-width: 0;
+	display:   flex;
+	flex-direction: column;
+}
+
+.psbdx-attachment-filename {
+	font-size:     12px;
+	overflow:      hidden;
+	text-overflow: ellipsis;
+	white-space:   nowrap;
+}
+
+.psbdx-attachment-size {
+	font-size: 11px;
+	color:     #787c82;
+}
+
+.psbdx-attachment-delete {
+	flex:   0 0 auto;
+	color:  #b32d2e;
+	cursor: pointer;
+	padding: 2px;
+}
+
+.psbdx-attachment-delete:hover {
+	color: #d63638;
 }
 
 .psbdx-admin-reply-actions {
@@ -949,6 +1080,31 @@
 	.psbdx-srm-tools table.widefat tbody,
 	.psbdx-srm-tools table.widefat tr {
 		width: 100%;
+	}
+
+	/* Settings/API/Repair page tab bar: scroll horizontally instead of
+	   wrapping into a cramped multi-row stack of tabs on narrow screens. */
+	.psbdx-srm-tools .nav-tab-wrapper {
+		display:          flex;
+		flex-wrap:        nowrap;
+		overflow-x:       auto;
+		-webkit-overflow-scrolling: touch;
+		white-space:      nowrap;
+		padding-bottom:   0;
+	}
+
+	.psbdx-srm-tools .nav-tab-wrapper .nav-tab {
+		flex:   0 0 auto;
+		margin-bottom: 0;
+	}
+
+	/* Comfortable tap targets for buttons/inputs on our own pages. */
+	.psbdx-srm-tools .button,
+	.psbdx-srm-tools input[type="text"],
+	.psbdx-srm-tools input[type="number"],
+	.psbdx-srm-tools input[type="email"],
+	.psbdx-srm-tools select {
+		min-height: 38px;
 	}
 
 	/* Captcha settings: stack label above field instead of a cramped

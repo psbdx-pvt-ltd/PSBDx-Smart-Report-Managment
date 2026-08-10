@@ -4,7 +4,7 @@ Tags:              support ticket, helpdesk, ai, woocommerce, complaint
 Requires at least: 5.8
 Tested up to:      7.0
 Requires PHP:      7.4
-Stable tag:        1.4.4
+Stable tag:        1.4.5
 License:           GPL-2.0-or-later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -175,184 +175,64 @@ Note: bulk/maintenance operations that write status directly to the database (CS
 
 == Changelog ==
 
-= 1.4.4 =
+= 1.4.5 =
+* New: Setup Wizard for first-time installs (mailing setup, starter form, reopenable anytime via the "Setup Wizard" action link or Repair & Reset).
+* New: inline form embedding (`mode="inline"`) and URL popup links (append `?<form id>` to any page).
+* New: Attachment field (admin-configurable file types/size limits) and Review (star rating) field types.
+* New: file attachments in reply threads, a full "Attachments" management box (manual delete anytime), and optional auto-delete on Solved per field.
+* New: optional real email attachments for reply notifications (Settings → Email), off by default.
+* Fix: popup links now work on hosts that inject extra query parameters (e.g. some free hosts).
+* Fix: asset cache-busting no longer depends on the plugin version number, so CSS/JS fixes reach browsers immediately.
+* Improved: mobile touch targets and layout across PSBDx's own admin screens.
 
-* **New — always-verified email option for the API:** Under Settings → API, a new "Always require a verified email on every API submission" checkbox adds an extra "Verified Email" field to every API-enabled form's schema for API callers — independent of whatever the form itself collects, including any email field it may already have. When on, that field always requires OTP verification before `/submit` succeeds, guaranteeing every report created through the API can be reliably linked to a real email address, even for forms that don't collect one on the frontend at all. Off by default.
-* **Security — API hardening pass:**
-    * **Brute-force lockout:** an IP that fails API authentication (wrong key or wrong secret) 15 times within 15 minutes is now locked out from authenticating for 15 minutes, independent of which key it was trying. A successful request clears the count.
-    * **Peppered secret hashing:** newly created/rotated API keys now have their secret hashed with `hash_hmac( 'sha256', $secret, wp_salt( 'auth' ) )` — a site-specific pepper — instead of a plain hash, so a stolen database alone isn't enough to verify guesses offline. Existing keys created before this change keep working via a backward-compatible check against the old scheme.
-    * **OTP send throttling:** an email field can now only trigger an OTP send 3 times per session, and 30 times per API key per hour, whichever comes first — closing off a way the endpoint could otherwise be used to repeatedly send "verification code" emails to an arbitrary address at no cost to the caller.
+= 1.4.4 =
+* New: "Always require a verified email" option for API submissions.
+* Security: API brute-force lockout, peppered secret hashing, OTP send throttling.
 
 = 1.4.3 =
-
-* **New — External API:** Under Settings → API, admins can generate API keys (each restricted to whitelisted domains and/or server IPs) that let an external system — a chatbot, another app — fill in and submit a report form programmatically. A per-form "Allow this form to be filled via the API" checkbox controls which forms are exposed; if exactly one form has it enabled, callers can start a session without specifying a form ID. The flow is session-based: `POST /start` returns a session ID and the form's field schema, `POST /field` fills one field at a time (an Email field automatically triggers a one-time code sent to that address instead of being stored directly), `POST /verify-otp` confirms that code, and `POST /submit` creates the report once everything required is present, returning a ticket ID. `GET /ticket/{id}/status` looks up a ticket's current status. All endpoints require an API key + secret via the `X-PSRM-Api-Key` / `X-PSRM-Api-Secret` headers (or `Authorization: Bearer key:secret`).
-* **Critical fix — report/reply submission could fatal on some hosts:** Since 1.4.2, submitting a report (or a follow-up reply) ran AI classification and/or AI auto-reply synchronously — including, for auto-reply, an extra page fetch — all before the browser got its response. On hosts with a modest `max_execution_time` (many shared hosts default to 20–30 seconds), a slow or briefly-degraded AI provider could push the total past that limit and fatal the request with "Maximum execution time exceeded," which looked to a visitor like the site had crashed while submitting a report. The success response is now sent to the browser first — instantly finishing the connection where the host supports it (PHP-FPM) — with classification, auto-reply, and email notifications continuing afterward, off to the side, where a slow provider can no longer affect what the visitor sees. A reply's AI auto-response, if any, now arrives via the same thread-polling mechanism that already picks up a reply from the other side, instead of holding up the reply confirmation. The API's `/submit` endpoint got the same safety net.
-* **New — Sender name & email:** Under Settings → Email, admins can set a Sender name and Sender email that every outgoing notification is sent under. Either field can be left blank to fall back to the site's normal default for that half.
-* **Fix — email template saving:** The Settings → Email save handler was unslashing the posted template data twice, which could silently strip a literal backslash an admin typed into a subject or body (e.g. a Windows path) every time they saved.
-* **Fix — submission still slow on non-PHP-FPM hosts:** The earlier fix in this same release sent the response to the browser before running AI classification/auto-reply/email — but on hosts without PHP-FPM (no `fastcgi_finish_request()`), the connection stayed open regardless, so the visitor's browser still waited on the AI calls either way. Report submission and follow-up replies now hand that work off to a separate WP-Cron request (nudged to run immediately) on any host where the connection can't already be closed out early — so submitting a report responds quickly everywhere, not just on PHP-FPM.
-* **New — restricted-hosting detection for the API:** Some free hosting providers (the InfinityFree family being the most commonly reported) block or JS-challenge inbound API-style requests from other domains at the network edge, before WordPress ever sees them — so the External API's endpoints would exist and look configured, but silently never work for any real caller. Settings → API now runs a live self-test (the same technique Core's own Site Health "REST API availability" check uses: WordPress asks itself to fetch its own API over the public internet) plus a quick hostname check against known-restrictive hosting patterns. When either flags a problem, the sensitive API endpoints stop registering and a clear notice explains why, with a "Re-check now" button and a manual "enable anyway" override for anyone who's confirmed their host is fine. Existing API keys are never touched.
-* **Fix — CSV form import used a deprecated function:** `get_page_by_title()` (deprecated since WordPress 6.2) has been replaced with a `get_posts()`-based exact-title lookup, so importing forms from CSV no longer risks a visible deprecation notice on hosts that display them.
-* **Fix — defensive hardening on CSV upload validation:** the upload check now confirms `$_FILES[...]['error']` is actually set before reading it, rather than assuming a well-formed array.
-* **Change — API submissions always verify email:** an Email field on an API-enabled form is now always treated as mandatory to OTP-verify before `/submit` succeeds, regardless of that field's own "Required" toggle on the form — a report created via the API can otherwise have no reliable way to confirm who actually submitted it. The field schema returned by `/start` and `/fields` reflects this (`required` is `true` for any email field).
-* **New — `GET /fields`:** returns a form's field schema — the same information `/start` returns — without opening a session, for a caller that just wants to inspect what a form collects (to build a UI, or decide what to send) without committing to the 30-minute session lifecycle.
+* New: External API for programmatic report submission — API keys, domain/IP whitelisting, OTP-verified email, session-based `/start` → `/field` → `/verify-otp` → `/submit` flow.
+* Critical fix: report/reply submission could fatal on hosts with short execution-time limits; AI classification/auto-reply/notifications now run after the response is sent.
+* New: Sender name & email under Settings → Email.
+* Fix: email template saving no longer strips literal backslashes.
+* New: automatic detection of hosts that block the API (e.g. the InfinityFree family), with a self-test and clear admin notice.
+* Fix: CSV form import no longer uses a deprecated WordPress function.
 
 = 1.4.2 =
-
-* **New — Reply threads on reports:** Each report form now has an "Allow Replies" option (Settings tab). When turned on, both the reporter (from `[psbdx_user_reports]`, via a new "View & Reply" panel per report) and admins (from a new "Conversation" box on the report edit screen) can exchange follow-up messages on a report. When turned off, reply attempts are rejected. Reports submitted before this update don't have a known source form yet, so replies can't be enabled retroactively for them.
-* **New — AI can reply automatically:** A report form with "Allow Replies" on can also enable "Allow AI to reply", which posts an AI-generated reply into the conversation automatically — right after the report is submitted, and again after the reporter posts a follow-up. This only takes effect once the new site-wide "Allow AI to reply" switch under Settings → AI → Manage is also turned on; an info icon next to that switch explains that enabling it lets the plugin send the AI some content from the page the customer reported from, so its reply can be grounded in what they were actually looking at, alongside the report text and conversation so far.
-* **New — Improve with AI (admin replies):** When replying to a report, admins now have an "Improve with AI" button that polishes their drafted reply (grammar, tone, clarity) without changing its meaning, plus a separate "Generate AI Reply" button (shown only when this report's AI-reply gate is fully open) that drafts a full reply for review before sending. Both are independent of the automatic AI reply feature and never post anything without the admin clicking Send.
-* **Improved — FAQ frontend redesign:** The `[psbdx_faq]` accordion has a refreshed look (Q/A badges, hover and open-state highlighting, subtle open animation) and a live search box that filters questions as you type once there are more than a few.
-* **New — Ticket ID shown in admin:** The report edit screen's ticket header now shows the ticket ID as its own badge, and the AI Response Log table has a Ticket column again.
-* **New — Email notifications:** Under Settings → Email, admins can now enable/disable and fully rewrite (subject + HTML body, with placeholders) five notifications: new report received (to admin), report confirmation (to reporter), AI error (to admin, when an automated classification or auto-reply fails), and new reply (to whichever side — admin or reporter — didn't just send it).
-* **New — CSV import/export:** The Repair & Reset page can now export reports and report forms to CSV (a `meta_json` column carries every setting/field for a full-fidelity round trip) and import them back in — reports are matched for update by ticket ID, forms by exact title.
-* **New — Dedicated report detail page:** "View & Reply" on `[psbdx_user_reports]` now opens a full detail page (ticket ID, date, status, category, priority, item, and the full submitted details) instead of an inline panel — which fixes the previous issue where that panel could appear open by default on narrower screens. Only the reporter (matched by account, or by email for guests) or an admin can view it — anyone else gets a normal 404. Confirmation and reply-notification emails now link straight to this page.
-* **New — Per-report "Turn off AI replies" switch:** On the report edit screen's Conversation box, admins can now turn off automatic AI replies for one specific report (e.g. once they've personally taken over the conversation) without changing the form's or the site's AI settings. The "Improve with AI" and "Generate AI Reply" buttons still work as manual, on-demand tools regardless of this switch.
-* **New — Report status change hooks for developers:** Two new action hooks, `psbdx_srm_report_status_changed` and the status-specific `psbdx_srm_report_status_changed_to_{status}`, fire whenever a report's status changes — with the ticket ID, the submitter's numeric user ID and email, old/new status, who made the change, and the update time. Lets other plugins react to status changes instead of polling the database. See "Developer Hooks" above for details.
+* New: reply threads on reports (frontend + admin), with an optional automatic AI reply.
+* New: "Improve with AI" / "Generate AI Reply" tools for admins.
+* New: email notifications (5 events, fully editable), CSV import/export, dedicated report detail page.
+* New: report status change hooks (`psbdx_srm_report_status_changed`) for developers.
+* Improved: redesigned FAQ with live search.
 
 = 1.4.1 =
-
-* **New — Unique Ticket IDs:** Every submitted report is now assigned a unique, human-readable ticket ID (e.g. "PSRM-20260714-8K3F2A"), shown to the reporting user in the submission confirmation and their report history ([psbdx_user_reports]) as their reference for follow-up, and shown to admins on the report edit screen and in the AI Response Log (as of 1.4.2) so a ticket a user quotes can be found and matched immediately.
-* **New — AI responses are matched by ticket ID:** When AI classification runs, the ticket ID is included in the request and the AI is required to echo it back in its JSON response. The plugin verifies the returned ticket ID matches before applying the category/priority, so a response can never be misapplied to the wrong report — important on busy sites processing many reports at once.
-* **New — AI-assisted report classification (WordPress 7.0+):** New Settings → AI tab (Manage / Knowledgebase) lets admins turn on AI-powered classification, choose preferred model(s), set a token limit and temperature, and send a test request to verify the connection. Uses the WordPress 7.0 AI Client and Connectors API. On sites running WordPress below 7.0, or where no AI provider is connected, the controls are automatically greyed out and disabled — nothing else in the plugin is affected.
-* **New — Automatic category and priority suggestions:** When AI features are enabled, every newly submitted report is automatically sent to the connected AI provider, which selects a Category (constrained to the admin-defined list when one exists, or proposed by the AI when the list is empty) and a Priority (Low / Medium / High).
-* **New — Report Categories settings tab:** Admins can define and manage the list of report categories from Settings → Categories. This list powers both the manual Category dropdown on the report edit screen and the AI's category suggestion.
-* **New — Manual Category & Priority meta box:** A "Category & Priority" box on the report edit screen lets admins set or override both fields by hand at any time, independently of WordPress version or whether AI features are enabled or available. A small indicator shows whether the current values were suggested by AI or set manually.
-* **New — Category and Priority admin columns:** The Responses list table now shows Category and colour-coded Priority badges alongside Status.
-* **New — AI Response Log:** A new "AI Response Log" submenu records every request/response sent to the AI Client — classifications, summaries, and Settings → AI test requests — in a small dedicated table, with the model used and a viewable request/response excerpt. Only the last 3 hours are kept; older entries are purged automatically (hourly, and opportunistically on every new entry), so it stays lightweight even on busy sites.
-* **New — Summarize with AI:** On the report edit screen, an admin can click "Summarize with AI" to have the AI explain in plain language what the customer is actually reporting — handy for quickly triaging longer or vaguely-worded reports. Only shown when AI features are enabled and available.
-* **Improved — "Report Logs" renamed to "Responses":** The admin submenu and all related labels (search, empty states, etc.) now read "Responses" instead of "Report Logs" for clarity.
-* **Improved — Redesigned response view:** The report edit screen has a new "at a glance" header (status, category, priority, reporter, and date right under the title) and the message itself is shown in a cleaner, more readable card. The redundant default WordPress editor box — which just duplicated the read-only message — has been removed from this screen.
-* **New — FAQ tab under Support:** Support now has a "FAQ" tab where admins can add their own common questions and answers, plus a `[psbdx_faq]` shortcode (with a one-click copy button) to display them as an accordion anywhere on the site.
-* **Improved — Support request emails:** The email sent from Support → Contact Support is now a properly formatted HTML email (branded header, a details table, the description in its own card, and system information in a readable monospace block) instead of a bare plain-text dump.
-* **Fixed — Critical mobile/responsive issues in the admin:** The admin side of the plugin had no responsive styles at all. Added proper breakpoints so admin tables scroll horizontally instead of breaking the page layout on narrow screens, the Support page's two-column layout collapses to a single column below ~900px, the Captcha settings' label/field rows stack on phones, and all newly-added UI (response view, AI Response Log, FAQ tab) was built mobile-first from the start.
-* **Improved — Security/problem-detection scan:** The plugin's background integrity scan now also catches AI-related drift: AI enabled on a site that no longer meets the WordPress/AI Client requirements (e.g. after a downgrade), the AI Response Log database table going missing (it now attempts to self-repair this automatically before reporting it), and a run of consecutive AI request failures — all surfaced as an admin notice rather than silently failing.
+* New: unique ticket IDs, AI-assisted report classification (WordPress 7.0+), AI Response Log.
+* New: Report Categories, manual Category & Priority override, Summarize with AI.
+* Improved: "Report Logs" renamed to "Responses"; redesigned response view; mobile-responsive admin.
 
 = 1.4.0 =
-
-* **New — Field Settings is now a popup on every viewport:** Field Settings was previously a permanently visible third grid column on desktop (220px library + flexible canvas + 280px settings), which left too little room for the canvas at anything narrower than a wide monitor. It's now a popup everywhere: a right-side drawer on desktop, a bottom sheet on mobile. Selecting a field opens it; the "X" button, the backdrop, or Esc closes it. Desktop is a simple 2-column grid now (library + canvas), so the canvas gets all the space it needs regardless of window width.
-* **Fixed — Duplicate/non-functional display checkboxes (1.3.2_beta):** The Settings tab had two sections that appeared to do the same thing: "Global Display Settings" (which actually works, via the site-wide `psbdx_global_order_form_id` / `psbdx_global_product_form_id` options) and "Plugin Integrations" (which saved post meta that nothing in the plugin ever read back — checking those boxes silently did nothing). Merged into one working "Automatic Display" section, correctly disabled with a warning badge when the required plugin isn't active. The dead post meta is cleaned up automatically on save.
-* **New — Fully functional mobile Form Builder (1.3.2):** Replaced the old "please switch to Desktop Mode" mobile block with a real touch-optimized builder: a floating "Add Field" button opens the field library as a bottom sheet, selecting a field opens its settings, and every field card has Up/Down buttons for reordering (drag-and-drop remains available on desktop).
-* **Fixed — Desktop builder overflowing into other fields (1.3.3_beta):** The Up/Down reorder buttons are non-shrinking, and the builder's grid/flex children were missing `min-width: 0` — a CSS gotcha where grid/flex items refuse to shrink below their content's intrinsic width unless told to. Wider field cards were bleeding out of the canvas column into the settings panel. Fixed by adding `min-width: 0` so cards shrink and truncate instead of overflowing.
-* **Fixed — Mobile "Add Field" overlay not receiving taps (1.3.3_beta):** Two compounding bugs: the builder layout had a mobile flex-column rule and an unscoped desktop grid rule with equal CSS specificity, and because the desktop rule came later in the file it silently won on mobile too, so the layout never actually switched to a single column; and jQuery UI's `.draggable()`/`.sortable()` (mouse-event based, no touch support) were still bound on mobile, which could intercept a tap before the tap-to-add handler fired, so the touch fell through to the canvas underneath. Fixed by restructuring the layout mobile-first, skipping drag/sort initialization on mobile, and hardening the sheets with explicit `pointer-events`.
-* **Fixed — Canvas collapsing to an unreadable sliver at "in-between" widths (1.3.4_beta):** At moderate viewport widths (a phone's "Desktop Mode", a narrow browser window, a small laptop) the fixed-width side columns left so little room that the canvas collapsed toward zero — the field card's non-shrinking buttons stayed visible while the icon and label had nowhere to render. Superseded in this release: with Field Settings now a popup instead of a third grid column, the canvas always gets the full remaining width.
+* New: Field Settings is now a popup (drawer on desktop, bottom sheet on mobile) at every viewport.
+* New: fully functional mobile Form Builder.
+* Fixed: several Form Builder layout/overflow/touch bugs on mobile and in-between viewport widths.
 
 = 1.3.1 =
-
-* **Fixed — Plugin Integrations section:** The integrations section in the Form Builder Settings tab is now always visible. "Add to all order details pages" shows a WooCommerce badge and is disabled (with a "Plugin not installed" warning badge) when WooCommerce is not active. "Add to all product and course pages" shows the relevant badges for WooCommerce and/or LearnPress and is disabled when neither is installed.
-* **Improved — Security system:** `PSBDX_SRM_Conflict_Guard` now runs a multi-point security scan on `admin_init` (cached via 5-minute transient): checks post-type registration, core class presence, legacy form count, and captcha misconfiguration. Results are shown in both the Repair & Reset page and as a non-dismissible admin notice.
-* **Improved — Auto conflict detection:** Plugin deactivation now busts the security scan cache so the next page load reflects the updated plugin state. The health check after third-party plugin activation also busts the security scan cache on pass.
-* **Improved — Repair & Reset page:** Added a security status banner at the top of the page — green "all clear" when no issues are found, red list of issues when any are detected. Added a "Refresh security scan" action to manually bust the cached scan result.
-* **Improved — Admin dashboard widget:** Added an unsolved reports banner showing how many reports are not marked as "Solved" (with a direct link to the reports list). Shows a green "all clear" message when every report is solved.
-* **New — Admin bar shortcut:** A "Reports" link with a red count badge (unsolved reports) is now shown in the WordPress admin bar for administrators, providing a quick path to the reports list from any admin page.
-* **New — Support submenu page:** Added a "Support" page under the Reports menu. Includes a contact form (Name, Contact Email, Attachments, Description) and a checkbox to include automatic system information (WordPress + PHP version, all installed and active plugins, active theme). On submission the email is sent to support@dev.psbdx.xyz via the site's configured mail. A collapsible preview shows exactly what system data will be attached before submission.
+* Improved: security scan system, Repair & Reset status banner, admin bar reports shortcut, Support submenu page.
 
 = 1.3.0 =
-
-**Learn more (launch overview):** https://dev.psbdx.xyz/v1-3-0-summary-psrm/
-
-* **New — v2 Form Builder:** Introduced a full drag-and-drop Form Builder replacing the flat v1 configuration meta box. Admin interface is now divided into two tabs: "Fields / Builder" (drag-and-drop canvas) and "Settings" (all configuration, integrations, and notifications).
-* **New — Field Library:** Ten field types now available in the builder: Name (split First/Last), Email, Mobile Number, Text (single-line), Paragraph (textarea), Number, Drop-down/Select, Radio Buttons, Checkboxes, and Captcha.
-* **New — Granular Field Settings panel:** Clicking any canvas field opens a live settings panel with Field Name (label), Field Handle (database slug), and a Required toggle.
-* **New — "Other" option for choice fields:** Radio, Select, and Drop-down fields now support an "Enable Other Option" toggle in admin. On the frontend, selecting "Other" dynamically reveals a text input for a custom response.
-* **New — Mobile builder restriction:** Builder canvas is hidden on viewports < 768 px with a clear user-facing message; Settings tab remains accessible at all screen sizes.
-* **New — Post-update global security notice:** On `admin_init`, the plugin checks whether any published report forms still use the legacy v1 schema. If any are found, a non-dismissible `notice-error` banner is displayed across the entire WordPress admin until every form is migrated and saved.
-* **New — Legacy form migration gate:** Editing a v1 form now shows a blocking "Legacy Form Detected" prompt. Clicking "Update form to the new builder" triggers an AJAX parser that maps the old data structure into a v2 field schema, allowing editing and saving in the new format. Saving applies the `_psrm_form_version = 2` flag, removing the form from the legacy count.
-* **New — Dynamic plugin integrations (Settings tab):** "Enable WooCommerce Integration" checkbox is now shown only when WooCommerce is active; "Enable LearnPress Integration" only when LearnPress is active. Both are detected via PHP class-existence checks.
-* **New — Conditional Captcha field:** The Captcha entry in the field library is disabled and shows a warning badge ("Please configure Captcha settings in PSRM global settings first.") when no captcha API keys are configured in global PSRM settings.
-* **New — Frontend v2 field renderer:** `PSBDX_SRM_Form_Renderer::render_fields()` renders all v2 field types from the JSON schema, including the "Other" reveal behaviour via delegated JS event listeners.
-* **New — v2 AJAX submission handler:** `class-psbdx-srm-ajax.php` now detects `_psrm_form_version` and routes v2 submissions through a per-field schema validator that sanitizes, validates required fields, and resolves "Other" values before building the report-log post content. V1 submission path is fully preserved for backward compatibility.
-* **Improved — Security:** Form builder fields are sanitized through `sanitize_fields_schema()` before being stored as JSON. Nonce verification precedes all `$_POST` reads. v2 field handles are constrained to `sanitize_key()`.
-* **Improved — Legacy count caching:** `psrm_legacy_form_count` transient (5-minute TTL) prevents a raw DB query on every admin page load; transient is busted immediately after any form is saved as v2.
-* **Compat — Backward compatible:** All v1 (legacy) form data, meta keys, shortcodes, and AJAX submission logic remain intact. No existing form breaks on update.
+* New: v2 drag-and-drop Form Builder with a 10-field Field Library, legacy form migration, and a v2-aware submission handler — fully backward compatible with v1 forms.
 
 = 1.2.0 =
-
-**Learn more (full release story):** https://dev.psbdx.xyz/v1-2-0-summary-psrm/
-
-*New Added:*
-* Added Captcha support for Google reCaptcha, hCaptcha, Cloudflare Turnstile.
-
-*Fixed:*
-* Fixed known bugs and visual glitches.
+* New: Captcha support (reCAPTCHA, hCaptcha, Turnstile). Bug fixes.
 
 = 1.1.0 =
-
-**Learn more (full release story):** https://dev.psbdx.xyz/v1-1-0-summary-psrm/
-
-**Admin menu and navigation**
-* New top-level **PSBDx Reports** menu groups Report Forms and Report Logs in one place for easier management.
-* **Settings** and **Repair & Reset** appear under this menu (requires manage_options).
-
-**Settings page (tabbed)**
-* **Status** — Add unlimited custom report statuses (label plus background and text colours). Built-in statuses remain fixed; custom rows can be removed with a Remove action and saved to delete them from storage.
-* **Global Rate Limiting** — Site-wide default cooldown (minutes) for logged-in users; use **0** to disable globally. Per-form cooldown in each Report Form still **overrides** the global value when set on the form.
-* **Captcha** — Placeholder tab (“Coming soon”).
-* **Email** — Placeholder tab (“Coming soon”).
-
-**Repair & Reset**
-* Read-only diagnostic scan (database connectivity, posts table, CPT registration, global form options, report counts, invalid status meta, rate-limit option rows).
-* **Clear rate-limit transients** — Removes stored cooldown entries (`psbdx_cd_*`) from the options table.
-* **Fix invalid status meta** — Normalizes unknown stored status values back to “Processing”.
-
-**Conflict guard**
-* After another plugin is activated, a lightweight health check runs; if this plugin’s post types or helpers fail to load, that plugin is automatically deactivated and an admin notice names it (filter `psbdx_srm_conflict_guard_enabled` to disable).
-
-**Plugin row action links**
-* On **Plugins → Installed Plugins**, administrators see **Settings**, **Repair & Reset**, and **Documentation** next to Activate/Deactivate.
-
-**Custom statuses (frontend and admin)**
-* Custom statuses merge with the five built-in statuses everywhere (meta boxes, list tables, dashboard widget, `[psbdx_user_reports]` chips).
-
-**Performance**
-* Dashboard status totals use a single aggregated query instead of many separate queries.
-* Published report forms list is cached per request where selectors need it (e.g. WooCommerce, LearnPress).
-
-**Multisite / network**
-* Plugin header **Network: true** for WordPress.org compatibility.
-* New blogs on a network use `active_sitewide_plugins` to detect network activation when stamping review-notice activation time.
-
-**Other fixes**
-* Ensure the main plugin file starts with `<?php` only (no stray characters before the opening tag) to prevent “headers already sent” warnings.
+* New: PSBDx Reports admin menu, custom statuses, per-form/global rate limiting, Repair & Reset diagnostics, conflict guard, multisite support.
 
 = 1.0.1 =
-
-**Learn more (full release story):** https://dev.psbdx.xyz/v1-0-1-summary-psrm/
-
-**New: Admin Review Notice**
-* Added a dismissible admin panel notification that appears 24 hours after plugin activation, asking the site admin to leave a review on WordPress.org.
-* Three response options:
-  * "Yes, you deserve it!" — Opens the WordPress.org review page in a new tab and permanently dismisses the notice.
-  * "Nope, I'll review later" — Snoozes the notice for 7 days, after which it reappears.
-  * "I already reviewed" — Permanently dismisses the notice without any redirect.
-* Dismiss state is stored per-site (not network-wide), so each site on a multisite network manages its own notice independently.
-* Notice is only shown to users with the manage_options capability.
-* All AJAX requests are nonce-verified for security.
-
-**New: Documentation Link on Plugins Page**
-* Added a Documentation link next to the Deactivate/Activate action on the WordPress Plugins page, linking directly to the plugin's documentation at dev.psbdx.xyz.
-
-**Improved: Multisite Compatibility**
-* Activation hook now handles network-wide activation on multisite — iterates every site using switch_to_blog / restore_current_blog to write per-site options correctly.
-* New sites added to a network where the plugin is already network-active automatically receive their own activation timestamp via the wp_insert_site hook.
-* Plugin text domain is now loaded inside plugins_loaded so per-site language settings are respected on multisite.
-* Backward-compatible lazy activation stamping — existing sites active before v1.1.0 receive a timestamp on first load with no manual action required.
+* New: admin review-notice prompt, Documentation link, improved multisite activation handling.
 
 = 1.0.0 =
+* Initial release: AJAX report modal, per-form rate limiting, WooCommerce/LearnPress integration, admin dashboard widget, `[psbdx_report]` / `[psbdx_user_reports]` shortcodes.
 
-**Learn more (launch overview):** https://dev.psbdx.xyz/v1-0-0-summary-psrm/
-
-* Initial release.
-* Full multi-file plugin architecture following WordPress coding standards.
-* AJAX report modal with mobile-first responsive design.
-* Server-side identity collection (name and email never from form input).
-* Admin toggle to show/hide reporter identity card.
-* Per-form rate limiting using WordPress transients.
-* WooCommerce / e-commerce order auto-link with HPOS support.
-* Admin dashboard widget with status counts and recent reports.
-* Configurable reasons, extra fields, contact field, and cooldown per form.
-* Five report statuses with colour-coded admin badges.
-* `[psbdx_report]` and `[psbdx_user_reports]` shortcodes.
-* LearnPress course, lesson, and quiz page integration.
+Full release notes for every version: https://dev.psbdx.xyz/
 
 == Upcoming Features ==
 

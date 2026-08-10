@@ -53,6 +53,27 @@ class PSBDX_SRM_Form_Builder {
 	const SCHEMA_VERSION = 2;
 
 	/**
+	 * Default allowed file extensions for a new Attachment field, and the
+	 * absolute ceiling any form's max_size_kb can be set to — keeps a
+	 * misconfigured or malicious "max size" value from letting a single
+	 * upload exhaust disk space.
+	 *
+	 * @since 1.4.5
+	 * @var array|int
+	 */
+	const ATTACHMENT_DEFAULT_TYPES = array( 'jpg', 'jpeg', 'png', 'pdf' );
+	const ATTACHMENT_SIZE_CEILING_KB = 51200; // 50 MB.
+
+	/**
+	 * Star-rating bounds for a Review field.
+	 *
+	 * @since 1.4.5
+	 * @var int
+	 */
+	const REVIEW_MIN_STARS = 2;
+	const REVIEW_MAX_STARS = 10;
+
+	/**
 	 * Nonce action for builder saves.
 	 *
 	 * @since 1.3.0
@@ -130,7 +151,7 @@ class PSBDX_SRM_Form_Builder {
 			'psbdx-srm-builder',
 			PSBDX_SRM_URL . 'assets/js/form-builder.js',
 			array( 'jquery', 'jquery-ui-sortable', 'jquery-ui-draggable', 'jquery-ui-droppable' ),
-			PSBDX_SRM_VERSION,
+			psbdx_srm_asset_ver( 'assets/js/form-builder.js' ),
 			true
 		);
 
@@ -165,7 +186,7 @@ class PSBDX_SRM_Form_Builder {
 			'psbdx-srm-builder',
 			PSBDX_SRM_URL . 'assets/css/form-builder.css',
 			array(),
-			PSBDX_SRM_VERSION
+			psbdx_srm_asset_ver( 'assets/css/form-builder.css' )
 		);
 	}
 
@@ -692,6 +713,8 @@ class PSBDX_SRM_Form_Builder {
 			'select'    => array( 'label' => __( 'Drop-down / Select', 'psbdx-smart-report-management' ), 'icon' => 'dashicons-arrow-down-alt2' ),
 			'radio'     => array( 'label' => __( 'Radio Buttons',      'psbdx-smart-report-management' ), 'icon' => 'dashicons-marker' ),
 			'checkbox'  => array( 'label' => __( 'Checkboxes',         'psbdx-smart-report-management' ), 'icon' => 'dashicons-yes-alt' ),
+			'attachment' => array( 'label' => __( 'Attachment',        'psbdx-smart-report-management' ), 'icon' => 'dashicons-media-default' ),
+			'review'    => array( 'label' => __( 'Review (Star Rating)', 'psbdx-smart-report-management' ), 'icon' => 'dashicons-star-filled' ),
 			'captcha'   => array( 'label' => __( 'Captcha',            'psbdx-smart-report-management' ), 'icon' => 'dashicons-shield-alt' ),
 		);
 	}
@@ -1047,6 +1070,35 @@ class PSBDX_SRM_Form_Builder {
 				$raw_choices     = is_array( $field['choices'] ?? null ) ? $field['choices'] : array();
 				$entry['choices']      = array_map( 'sanitize_text_field', $raw_choices );
 				$entry['other_option'] = ! empty( $field['other_option'] );
+			}
+
+			// Attachment field: allowed extensions + min/max size (KB).
+			if ( 'attachment' === $type ) {
+				$raw_types = is_array( $field['allowed_types'] ?? null ) ? $field['allowed_types'] : array();
+				$clean_types = array();
+				foreach ( $raw_types as $ext ) {
+					$ext = strtolower( preg_replace( '/[^a-z0-9]/i', '', (string) $ext ) );
+					if ( '' !== $ext ) {
+						$clean_types[] = $ext;
+					}
+				}
+				$entry['allowed_types'] = ! empty( $clean_types ) ? array_values( array_unique( $clean_types ) ) : self::ATTACHMENT_DEFAULT_TYPES;
+
+				$min_kb = max( 0, (int) ( $field['min_size_kb'] ?? 0 ) );
+				$max_kb = (int) ( $field['max_size_kb'] ?? 5120 );
+				$max_kb = $max_kb > 0 ? min( self::ATTACHMENT_SIZE_CEILING_KB, $max_kb ) : 5120;
+				if ( $min_kb > $max_kb ) {
+					$min_kb = 0; // Ignore a nonsensical min > max rather than blocking every upload.
+				}
+				$entry['min_size_kb'] = $min_kb;
+				$entry['max_size_kb'] = $max_kb;
+				$entry['delete_on_solved'] = ! empty( $field['delete_on_solved'] );
+			}
+
+			// Review field: how many stars are shown.
+			if ( 'review' === $type ) {
+				$max_stars = (int) ( $field['max_stars'] ?? 5 );
+				$entry['max_stars'] = min( self::REVIEW_MAX_STARS, max( self::REVIEW_MIN_STARS, $max_stars ?: 5 ) );
 			}
 
 			$clean[] = $entry;

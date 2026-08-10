@@ -98,6 +98,73 @@
 	to   { opacity: 1; transform: translateY( 0 )    scale( 1 );    }
 }
 
+/* ── Inline embedded form (mode="inline") ────────────────────────────────── */
+/* Same visual language as the modal panel, but sits statically in the page
+   flow — no backdrop, no close button, always visible. */
+.psbdx-inline-form-wrap {
+	position:      relative;
+	background:    var( --psbdx-surface );
+	border:        1px solid var( --psbdx-border );
+	border-radius: var( --psbdx-radius );
+	padding:       26px 24px 22px;
+	width:         100%;
+	max-width:     560px;
+	box-shadow:    0 1px 3px rgba( 15, 23, 42, 0.08 );
+	font-family:   -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	box-sizing:    border-box;
+	margin:        18px 0;
+}
+
+@media ( max-width: 600px ) {
+	.psbdx-inline-form-wrap {
+		padding: 20px 16px 18px;
+	}
+}
+
+/* ── Attachment field hint text ──────────────────────────────────────────── */
+.psrm-field-hint {
+	margin:    4px 0 0;
+	font-size: 12px;
+	color:     var( --psbdx-text-muted, #6b7280 );
+}
+
+/* ── Review field (pure-CSS star rating) ─────────────────────────────────── */
+.psrm-star-rating {
+	display:        inline-flex;
+	flex-direction: row-reverse;
+	justify-content: flex-end;
+	gap:            2px;
+}
+
+.psrm-star-rating input {
+	position: absolute;
+	opacity:  0;
+	width:    0;
+	height:   0;
+	pointer-events: none;
+}
+
+.psrm-star-rating .psrm-star {
+	cursor:      pointer;
+	color:       #d1d5db;
+	line-height: 1;
+}
+
+.psrm-star-rating .psrm-star::before {
+	content:   "\2605";
+	font-size: 26px;
+}
+
+.psrm-star-rating input:checked ~ .psrm-star,
+.psrm-star-rating input:checked ~ .psrm-star ~ .psrm-star {
+	color: #f59e0b;
+}
+
+.psrm-star-rating:not(:has(input:checked)) .psrm-star:hover,
+.psrm-star-rating:not(:has(input:checked)) .psrm-star:hover ~ .psrm-star {
+	color: #f59e0b;
+}
+
 /* ── Close button ─────────────────────────────────────────────────────────── */
 .psbdx-modal-close {
 	position:    absolute;
@@ -616,11 +683,75 @@
 .psbdx-thread-msg-body p:first-child { margin-top: 0; }
 .psbdx-thread-msg-body p:last-child  { margin-bottom: 0; }
 
+.psbdx-thread-msg-attachment {
+	margin-top: 6px;
+}
+
+.psbdx-thread-msg-attachment-img {
+	max-width:     220px;
+	max-height:    220px;
+	border-radius: 8px;
+	display:       block;
+	border:        1px solid var( --psbdx-border );
+}
+
+.psbdx-thread-msg-attachment-file {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           6px;
+	font-size:     13px;
+	padding:       6px 10px;
+	border:        1px solid var( --psbdx-border );
+	border-radius: 6px;
+	text-decoration: none;
+}
+
+.psbdx-thread-msg-attachment-deleted {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           6px;
+	font-size:     13px;
+	padding:       6px 10px;
+	border:        1px dashed var( --psbdx-border );
+	border-radius: 6px;
+	color:         var( --psbdx-text-muted, #6b7280 );
+	font-style:    italic;
+}
+
 .psbdx-thread-reply-form {
 	display:        flex;
 	flex-direction: column;
 	gap:            10px;
 	margin-top:     16px;
+}
+
+.psbdx-thread-reply-attach-row {
+	display:     flex;
+	align-items: center;
+	gap:         10px;
+}
+
+.psbdx-thread-reply-attach-btn {
+	display:       inline-flex;
+	align-items:   center;
+	gap:           5px;
+	font-size:     12px;
+	color:         var( --psbdx-text-muted, #6b7280 );
+	cursor:        pointer;
+	padding:       5px 10px;
+	border:        1px dashed var( --psbdx-border );
+	border-radius: 6px;
+}
+
+.psbdx-thread-reply-attach-btn:hover {
+	color:  var( --psbdx-accent, #2563eb );
+	border-color: var( --psbdx-accent, #2563eb );
+}
+
+.psbdx-thread-reply-file-name {
+	font-size: 12px;
+	color:     var( --psbdx-text-muted, #6b7280 );
+	overflow-wrap: anywhere;
 }
 
 .psbdx-thread-reply-input {

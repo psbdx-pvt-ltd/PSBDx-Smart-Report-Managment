@@ -324,6 +324,18 @@ class PSBDX_SRM_Helpers {
 	}
 
 	/**
+	 * Best-effort visitor IP address, for lightweight throttling only
+	 * (not a security control — REMOTE_ADDR is the one value here that
+	 * can't be spoofed by a request header, so it's what we key on).
+	 *
+	 * @since 1.4.5
+	 * @return string
+	 */
+	public static function get_client_ip() {
+		return isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+	}
+
+	/**
 	 * Effective cooldown for a specific form.
 	 *
 	 * Form meta value overrides global settings. If form meta is missing/empty,

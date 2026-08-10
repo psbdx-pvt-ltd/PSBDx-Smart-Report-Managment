@@ -26,7 +26,7 @@
 					return;
 				}
 
-				var text = codeEl.innerText || codeEl.textContent;
+				var text = ( 'value' in codeEl && codeEl.value ) ? codeEl.value : ( codeEl.innerText || codeEl.textContent );
 
 				if ( navigator.clipboard && navigator.clipboard.writeText ) {
 					navigator.clipboard.writeText( text ).then( function () {

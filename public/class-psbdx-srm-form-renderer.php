@@ -229,6 +229,72 @@ class PSBDX_SRM_Form_Renderer {
 					$out .= '</div>';
 					break;
 
+				case 'attachment':
+					$allowed_types = is_array( $field['allowed_types'] ?? null ) && ! empty( $field['allowed_types'] )
+						? $field['allowed_types']
+						: PSBDX_SRM_Form_Builder::ATTACHMENT_DEFAULT_TYPES;
+					$min_kb  = (int) ( $field['min_size_kb'] ?? 0 );
+					$max_kb  = (int) ( $field['max_size_kb'] ?? 5120 );
+					$accept  = implode( ',', array_map( function ( $ext ) { return '.' . $ext; }, $allowed_types ) );
+
+					$hint_parts = array(
+						sprintf(
+							/* translators: %s: comma-separated list of allowed extensions */
+							esc_html__( 'Allowed: %s', 'psbdx-smart-report-management' ),
+							esc_html( strtoupper( implode( ', ', $allowed_types ) ) )
+						),
+					);
+					if ( $max_kb > 0 ) {
+						$hint_parts[] = sprintf(
+							/* translators: %s: max size, human readable */
+							esc_html__( 'Max size: %s', 'psbdx-smart-report-management' ),
+							esc_html( size_format( $max_kb * 1024 ) )
+						);
+					}
+					if ( $min_kb > 0 ) {
+						$hint_parts[] = sprintf(
+							/* translators: %s: min size, human readable */
+							esc_html__( 'Min size: %s', 'psbdx-smart-report-management' ),
+							esc_html( size_format( $min_kb * 1024 ) )
+						);
+					}
+
+					$out .= '<div class="psbdx-field">';
+					$out .= '<label for="' . esc_attr( $field_id ) . '">' . $label . ' ' . $req_badge . '</label>';
+					$out .= '<input type="file" id="' . esc_attr( $field_id ) . '"'
+						. ' name="psrm_v2[' . esc_attr( $handle ) . ']"'
+						. ' accept="' . esc_attr( $accept ) . '"'
+						. $req_attr . '>';
+					$out .= '<p class="psrm-field-hint">' . esc_html( implode( ' · ', $hint_parts ) ) . '</p>';
+					$out .= '</div>';
+					break;
+
+				case 'review':
+					$max_stars = (int) ( $field['max_stars'] ?? 5 );
+					$max_stars = $max_stars > 0 ? $max_stars : 5;
+
+					$out .= '<div class="psbdx-field psrm-review-field">';
+					$out .= '<label>' . $label . ' ' . $req_badge . '</label>';
+					$out .= '<div class="psrm-star-rating" data-max="' . esc_attr( $max_stars ) . '">';
+					// Rendered high-to-low so the CSS "highlight this star and
+					// everything after it in DOM order" sibling trick lights
+					// up the correct stars regardless of which one is chosen.
+					for ( $star = $max_stars; $star >= 1; $star-- ) {
+						$star_id = esc_attr( $field_id ) . '-' . $star;
+						$out    .= '<input type="radio"'
+							. ' id="' . $star_id . '"'
+							. ' name="psrm_v2[' . esc_attr( $handle ) . ']"'
+							. ' value="' . esc_attr( $star ) . '"'
+							. ( $required && 1 === $star ? ' required' : '' ) . '>';
+						$out    .= '<label for="' . $star_id . '" class="psrm-star" title="'
+							/* translators: %d: number of stars */
+							. esc_attr( sprintf( _n( '%d star', '%d stars', $star, 'psbdx-smart-report-management' ), $star ) )
+							. '"></label>';
+					}
+					$out .= '</div>';
+					$out .= '</div>';
+					break;
+
 				case 'captcha':
 					if ( '' !== $captcha_provider ) {
 						$out .= '<div class="psbdx-captcha-widget"'
