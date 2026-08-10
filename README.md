@@ -222,6 +222,17 @@ Yes — the plugin declares HPOS compatibility and uses `wc_get_order()` / `get_
 
 Highlights from the latest release — full history in [`readme.txt`](./readme.txt).
 
+
+**1.4.5**
+- New: Setup Wizard for first-time installs (mailing setup, starter form, reopenable anytime via the "Setup Wizard" action link or Repair & Reset).
+- New: inline form embedding (`mode="inline"`) and URL popup links (append `?<form id>` to any page).
+- New: Attachment field (admin-configurable file types/size limits) and Review (star rating) field types.
+- New: file attachments in reply threads, a full "Attachments" management box (manual delete anytime), and optional auto-delete on Solved per field.
+- New: optional real email attachments for reply notifications (Settings → Email), off by default.
+- Fix: popup links now work on hosts that inject extra query parameters (e.g. some free hosts).
+- Fix: asset cache-busting no longer depends on the plugin version number, so CSS/JS fixes reach browsers immediately.
+- Improved: mobile touch targets and layout across PSBDx's own admin screens.
+
 **1.4.4**
 - New site-wide "Always require a verified email on every API submission" option — adds an extra Email field to every API-enabled form for API callers, independent of what the form itself already collects
 - Security hardening pass on the External API: brute-force lockout after repeated failed authentication, peppered secret hashing for new keys, and OTP send throttling to prevent the verification endpoint being used to spam arbitrary addresses
