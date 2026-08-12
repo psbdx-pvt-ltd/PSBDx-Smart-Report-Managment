@@ -252,6 +252,14 @@ Yes — see [Security & Verification](#-security--verification) above. Every rel
 
 Highlights from the latest release — full history in [`readme.txt`](./readme.txt).
 
+**1.4.6**
+- New: Support Agents system — add users as support agents from a dedicated admin submenu, set their work hours, and let the plugin auto-assign new reports to a free agent (notifying only that agent) when replies are enabled. An abandoned report is automatically handed to another free agent instead of sitting unassigned.
+- New: Administrators are added as agents automatically; a plugin-level Super Administrator designation is the only one that can manage/edit/remove other administrators from the agent list.
+- New: `[psbdx_user_reports]` now shows a full agent portal (My Reports, Assigned Reports, Search Ticket, and Manage Agents for admins) to any support agent or administrator, with per-report reply/status/abandon/handover tools and an admin-only activity log.
+- New: Agent Rating — a 2.5-star starting score per agent, shown in Agent Management, that rises with completed tickets and falls when a report is abandoned or left for an admin to reassign.
+- New: once a report is marked Solved, neither the reporter nor any agent can send another message until someone reopens it (a "Reopen This Report" button for the reporter; agents just change the status). Reports from a form with replies disabled are marked Solved automatically.
+- Fix: mobile layout of the report view & reply page — agent tools and reply buttons had no dedicated styling (inherited unstyled wp-admin button classes on the frontend), causing cramped padding and unreliable taps on small screens; now use the plugin's own responsive button/row styles.
+
 **1.4.5**
 - New: Setup Wizard for first-time installs (mailing setup, starter form, reopenable anytime via the "Setup Wizard" action link or Repair & Reset).
 - New: inline form embedding (`mode="inline"`) and URL popup links (append `?<form id>` to any page).
