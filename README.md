@@ -10,7 +10,7 @@
 
 Instant AJAX forms · Ticket IDs · AI triage · WooCommerce & LearnPress integration · External REST API
 
-[![Version](https://img.shields.io/badge/version-1.4.5-1a3cff?style=flat-square)](#-changelog)
+[![Version](https://img.shields.io/badge/version-1.4.6-1a3cff?style=flat-square)](#-changelog)
 [![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)](#-requirements)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](#-requirements)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-00c896?style=flat-square)](#-license)
