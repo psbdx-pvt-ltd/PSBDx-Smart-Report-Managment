@@ -10,7 +10,7 @@
 
 Instant AJAX forms · Ticket IDs · AI triage · WooCommerce & LearnPress integration · External REST API
 
-[![Version](https://img.shields.io/badge/version-1.4.6-1a3cff?style=flat-square)](#-changelog)
+[![Version](https://img.shields.io/badge/version-1.4.8-1a3cff?style=flat-square)](#-changelog)
 [![WordPress](https://img.shields.io/badge/WordPress-5.8%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)](#-requirements)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](#-requirements)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-00c896?style=flat-square)](#-license)
@@ -251,7 +251,15 @@ Yes — see [Security & Verification](#-security--verification) above. Every rel
 ## <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4cb.png" width="18" height="18" style="vertical-align:-3px" alt=""> Changelog
 
 Highlights from the latest release — full history in [`readme.txt`](./readme.txt).
-
+**1.4.8**
+- New: Title / Heading and Section Break field types in the Form Builder. Title is a read-only heading (with optional subtext) you can drop anywhere in a form. Section splits the form into pages — same idea as a Google Forms section: everything after a Section field becomes a new page shown after a "Next" button, each section has its own optional title/description, and a per-section "After this section" setting controls whether it continues to the next section or submits the form immediately. A thin progress line appears below the button on multi-section forms.
+- New: every field type (not just Title/Section) can now have optional help text shown underneath it, set from the field's settings panel in the Form Builder.
+- New: the popup form's icon can now be replaced with any image from the Media Library (Form Builder → Settings → Button Settings → Modal Icon). Leave it empty to keep the default warning icon.
+- Fix: the "Reporting: {page title}" context bar was showing on inline-embedded forms (`mode="inline"`), which reads oddly when the form is already sitting on that page's own content. Popup and popup-link forms still show it.
+- Fix: the captcha script (reCAPTCHA/hCaptcha/Turnstile) now loads with the `async` strategy, matching every provider's own recommended embed snippet — browsers increasingly block or delay third-party-cookie-dependent scripts that aren't loaded this way, which could leave the widget stuck blank.
+- Improved: server-side validation for v2 form submissions is significantly stricter — Email fields must be a valid address, Number fields must be numeric, Mobile fields must look like a phone number, and Select/Radio/Checkbox submissions are now checked against that field's own defined choices (and its "Other" setting) instead of accepting any posted value. Also fixed a related edge case where a crafted value could trigger "Other" handling on field types that don't support it.
+- Removed: the old v1 flat-settings Form Builder and its "legacy form" migration prompt are gone — every form now uses the v2 builder exclusively. Any form still on v1 is converted to an equivalent v2 field list automatically the moment its edit screen is opened; nothing is lost, there's just no more manual "migrate" step or admin tag about it.
+  
 **1.4.6**
 - New: Support Agents system — add users as support agents from a dedicated admin submenu, set their work hours, and let the plugin auto-assign new reports to a free agent (notifying only that agent) when replies are enabled. An abandoned report is automatically handed to another free agent instead of sitting unassigned.
 - New: Administrators are added as agents automatically; a plugin-level Super Administrator designation is the only one that can manage/edit/remove other administrators from the agent list.
