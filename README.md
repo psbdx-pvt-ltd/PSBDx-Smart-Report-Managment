@@ -259,7 +259,7 @@ Highlights from the latest release — full history in [`readme.txt`](./readme.t
 - Fix: the captcha script (reCAPTCHA/hCaptcha/Turnstile) now loads with the `async` strategy, matching every provider's own recommended embed snippet — browsers increasingly block or delay third-party-cookie-dependent scripts that aren't loaded this way, which could leave the widget stuck blank.
 - Improved: server-side validation for v2 form submissions is significantly stricter — Email fields must be a valid address, Number fields must be numeric, Mobile fields must look like a phone number, and Select/Radio/Checkbox submissions are now checked against that field's own defined choices (and its "Other" setting) instead of accepting any posted value. Also fixed a related edge case where a crafted value could trigger "Other" handling on field types that don't support it.
 - Removed: the old v1 flat-settings Form Builder and its "legacy form" migration prompt are gone — every form now uses the v2 builder exclusively. Any form still on v1 is converted to an equivalent v2 field list automatically the moment its edit screen is opened; nothing is lost, there's just no more manual "migrate" step or admin tag about it.
-  
+
 **1.4.6**
 - New: Support Agents system — add users as support agents from a dedicated admin submenu, set their work hours, and let the plugin auto-assign new reports to a free agent (notifying only that agent) when replies are enabled. An abandoned report is automatically handed to another free agent instead of sitting unassigned.
 - New: Administrators are added as agents automatically; a plugin-level Super Administrator designation is the only one that can manage/edit/remove other administrators from the agent list.
